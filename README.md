@@ -14,9 +14,10 @@ stop.
 - A body with 14 senses: 8 whiskers, local food, food gradient in the body frame
   (ahead, left), heading, energy.
 - Four actions: forward, left, right, eat.
-- A 128-unit GRU. The policy head is frozen inside a life. The recurrent body
-  and the prediction head learn, every step, to predict the next observation.
-  That is the only learning signal. It is self-supervised and has no reward.
+- A 128-unit GRU. The prediction head learns to predict the next observation.
+  The action head changes with use: the chosen action's connections to the
+  active memory cells grow, and unused connections shrink. No reward. The child
+  inherits the action weights, with noise. See `STATE.md` for the full handoff.
 - A population of up to 32. Energy falls. Food raises it. Zero energy stops the
   body. Above 90, the body splits. If the room is full, the child replaces the
   weakest living body. The child gets a mutated copy of the parent's weights.

@@ -39,8 +39,8 @@ class Config:
     adam_eps: float = 1e-8
     mut_p_body: float = 0.002
     mut_s_body: float = 0.02
-    mut_p_pol: float = 0.10
-    mut_s_pol: float = 0.10
+    mut_p_pol: float = 0.02
+    mut_s_pol: float = 0.05
 
     # runtime
     seed: int = 7

@@ -323,6 +323,13 @@ class Population:
         probs = torch.nan_to_num(probs, nan=1.0 / cfg.act_dim)
         actions = torch.multinomial(probs, 1).squeeze(1)
 
+        # use-dependent action plasticity. no reward: only the chosen action and
+        # the active memory cells. the child inherits these weights.
+        with torch.no_grad():
+            oh = torch.nn.functional.one_hot(actions, cfg.act_dim).float()
+            self.brains.W_pol.add_(0.001 * h2.detach().unsqueeze(2) * oh.unsqueeze(1))
+            self.brains.W_pol.mul_(0.9995).clamp_(-2.0, 2.0)
+
         # 3. act
         energy_before = self.energy.clone()
         x0 = self.x.clone()
