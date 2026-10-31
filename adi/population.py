@@ -404,6 +404,14 @@ class Population:
         if "seat_stats" in d:
             for i, s in enumerate(d["seat_stats"][: self.N]):
                 self.seat_stats[i] = dict(s)
+        # seed a baseline for seats that have a living body but no counted births
+        for i in range(self.N):
+            st = self.seat_stats[i]
+            if bool(self.alive[i]) and int(st["births"]) == 0:
+                st["births"] = 1
+                st["gen_sum"] = int(self.gen[i])
+                st["gen_count"] = 1
+                st["last_id"] = int(self.ids[i])
         self.competitive_birth = self.birth_mode != "off"
 
     # ----------------------------------------------------------------- stats
