@@ -115,6 +115,12 @@
       <option value="oldest">oldest</option>
       <option value="off">off</option>
     </select>
+    <select id="maxage" title="maximum age">
+      <option value="0">age off</option>
+      <option value="6000">age 6k</option>
+      <option value="8000">age 8k</option>
+      <option value="12000">age 12k</option>
+    </select>
     <button id="auto">auto</button>
     <button id="pause">pause</button>
   </div>
@@ -185,6 +191,7 @@
   });
   $("pause").onclick = () => send({cmd:"pause"});
   $("birthmode").onchange = () => send({cmd:"birth_mode", mode: $("birthmode").value});
+  $("maxage").onchange = () => send({cmd:"max_age", value: parseFloat($("maxage").value)});
   $("auto").onclick = () => send({cmd:"focus", mode:"auto"});
 
   function updatePulses(roster){
@@ -247,6 +254,9 @@
     $("pause").textContent = state.paused ? "resume" : "pause";
     const bm = $("birthmode");
     if (bm && bm.value !== (state.birth_mode || "threshold")) bm.value = state.birth_mode || "threshold";
+    const ma = $("maxage");
+    const mv = String(state.max_age || 0);
+    if (ma && [...ma.options].some(o => o.value === mv)) ma.value = mv;
     $("auto").classList.toggle("on", state.focus_mode === "auto");
 
     if(a){

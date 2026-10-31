@@ -28,6 +28,7 @@ class Population:
         self.birth_mode = "threshold"      # weakest | threshold | oldest | off
         self.birth_threshold = 15.0
         self.min_replace_age = 200
+        self.max_age = 0                  # 0 = off
         self.visited = torch.zeros(self.N, cfg.grid, cfg.grid, dtype=torch.bool)
         self.path = torch.zeros(self.N)
         self.obs_prev = torch.zeros(self.N, cfg.obs_dim)
@@ -275,6 +276,8 @@ class Population:
 
         # 7. deaths
         dead = self.alive & (self.energy <= 0.0)
+        if self.max_age > 0:
+            dead = dead | (self.alive & (self.age >= self.max_age))
         for slot in dead.nonzero().flatten().tolist():
             self._die(slot)
 
@@ -368,6 +371,7 @@ class Population:
                 "birth_mode": self.birth_mode,
                 "birth_threshold": self.birth_threshold,
                 "min_replace_age": self.min_replace_age,
+                "max_age": self.max_age,
                 "max_gen_saved": self.max_gen_saved,
                 "seat_stats": [dict(s) for s in self.seat_stats],
             }
@@ -400,6 +404,7 @@ class Population:
         self.birth_mode = d.get("birth_mode", "threshold")
         self.birth_threshold = float(d.get("birth_threshold", 15.0))
         self.min_replace_age = int(d.get("min_replace_age", 200))
+        self.max_age = int(d.get("max_age", 0))
         self.max_gen_saved = int(d.get("max_gen_saved", 0))
         if "seat_stats" in d:
             for i, s in enumerate(d["seat_stats"][: self.N]):

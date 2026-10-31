@@ -310,6 +310,8 @@ class Simulation:
                 if mode in ("weakest", "threshold", "oldest", "off"):
                     self.pop.birth_mode = mode
                     self.pop.competitive_birth = mode != "off"
+            elif cmd == "max_age":
+                self.pop.max_age = max(0, int(msg.get("value", 0)))
             elif cmd == "focus":
                 if msg.get("mode") == "auto":
                     self.focus_mode = "auto"
@@ -336,6 +338,7 @@ class Simulation:
             self.latest["speed"] = self.speed
             self.latest["birth_mode"] = self.pop.birth_mode
             self.latest["churn"] = self.pop.birth_mode != "off"
+            self.latest["max_age"] = self.pop.max_age
         return self.latest
 
     def _build_snapshot(self) -> dict:
@@ -399,6 +402,7 @@ class Simulation:
                 "focus_mode": self.focus_mode,
                 "churn": self.pop.birth_mode != "off",
                 "birth_mode": self.pop.birth_mode,
+                "max_age": self.pop.max_age,
                 "stats": stats,
                 "roster": roster,
                 "seat_stats": seat_stats,
