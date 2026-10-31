@@ -7,8 +7,8 @@ Last updated: 2026-10-31. This file is the restart point. Read it first.
 A small embodied agent (“Adi”) on an Oracle VM. There is no reward, no
 teaching, and no hand-written controller. Bodies live in rooms, eat, die, and
 are copied. Selection does the work. The current goal is a **reliable eat
-reflex**. The SOTF is now live on port 8000 as an early test, with port 8001
-as the control.
+reflex**. SOTF is off after a failed early test on port 8000: the 24 children
+died each round at pop 8. Port 8001 is the control.
 
 ## Where it runs
 
@@ -72,13 +72,11 @@ grep -o 'https://[a-zA-Z0-9.-]*trycloudflare.com' /opt/adi/data/tunnels/cf8001.l
 - Energy cap: 100. The cap grows by 0.00001 per step at the cap.
 - Floor: `min_pop` 8.
 - Max age: 0 on both. Aligned for the SOTF A/B.
-- SOTF: on port 8000 only. The round runs every 6,000 steps (one food
-  cycle), at the start of the rising phase. The 24 new children then reach the
-  plenty phase, the high food. Port 8001 is the continuous control. Groups:
-  top 16 keep; ranks 17–20 stay as the experiment group; ranks 21–32 are
-  replaced by children of the top 16. The top and near groups are always
-  living rooms. Empty rooms always refill. Score = 0.6 current food rate +
-  0.3 lineage food rate + 0.05 births + 0.001 age. No reward. See `sotf.csv`.
+- SOTF: **off on port 8000** after 5 sessions. Each round added 24 children;
+  all 24 died and the population returned to 8. The code and `sotf.csv`
+  remain. The food/energy supports about 8 bodies, not 32. Do not turn SOTF on
+  again until the carrying capacity is raised. Port 8001 is the continuous
+  control.
 - Birth rule: `threshold` (replace weakest below 15 energy only).
 - Records reset epoch: 726,084 on port 8000; 756,611 on port 8001. Only bodies
   born after these steps count for `best eat` / `best life` and the per-seat
@@ -112,7 +110,8 @@ SOTF history so far, in `20261031_132511_s7/sotf.csv`:
   falling phase and all 24 children died in the lean within ~3,000 steps.
 - Session 3, step 847,084: ran in the rising phase. The top 8 plus 24 new
   children, population 32. The children reach the plenty phase next.
-- Next automatic round: 853,084, then every 6,000 steps.
+- Session 5, step 859,084: 24 children; all died; population 8. SOTF off.
+- SOTF is now off on 8000. Both instances are continuous runs at pop 8.
 
 Trace rows carry `sense: body` after the body-frame change. Rows without it
 use the old world-frame senses. Do not mix them in one analysis.
@@ -186,9 +185,10 @@ head has been live for a while.
   is the reflex ceiling, not a bug. Selection removes such lines.
 - Pre-body-frame generation files are not valid for the current eval.
 - The old best records (88 / 355) are discarded by the epoch reset.
-- SOTF children born in the falling or lean phase die within ~3,000 steps.
-  Session 2 showed this. The 6,000-step schedule puts each round in the rising
-  phase, so the children get the plenty phase. Watch survival.
+- SOTF children die at every phase. Sessions 2-5 each added 24 children; all
+  died; the population returned to 8. The carrying capacity is about 8, not 32.
+- The page can look frozen at pop 8: 24 seats are empty and the SOTF session
+  counter moved. The step still advances. SOTF is off now.
 - The first SOTF grouping kept empty rooms in the top 16. Fixed: the top and
   near groups are living rooms; empty rooms always refill.
 
@@ -198,18 +198,16 @@ head has been live for a while.
 - Use-dependent plasticity is allowed: it uses only the chosen action and the
   active state, not food or energy.
 - The action score is a record only.
-- SOTF is an early test on port 8000. It is a selection mechanism, not a
-  reward. The reliable reflex is still the goal.
+- SOTF is off until the carrying capacity supports 32. The 24-child burst
+  failed at pop 8. The reliable reflex is still the goal.
 - The 4 near-miss rooms (ranks 17–20) are the planned experiment group.
 - The witness (fixed substrate) comes later.
 
 ## Next steps
 
-1. SOTF runs on port 8000 every 6,000 steps, in the rising phase. Port 8001
-   is the control. Watch `sotf.csv`: session 3's 24 children at the plenty
-   phase, whether they eat and survive the next lean, and the top 8 of
-   session 4.
-2. Next automatic round: 853,084, then every 6,000.
+1. SOTF is off. 8000 and 8001 are both continuous runs at pop 8.
+2. Decide the carrying capacity: raise food or lower metabolic cost so 32 can
+   live, or keep 8 and focus on the reflex. SOTF cannot work at 8.
 3. Measure the eat reflex at the plenty phase: `P(eat | food)` vs
    `P(eat | none)`. Target above 0.7 vs below 0.2.
 4. If the reflex becomes reliable and SOTF helps, scale: trial credits can give
@@ -228,4 +226,4 @@ observer ablation still look novel.
 |---|---|---|---|---|
 | 2026-10-31 | Food rate beats age as a selection score | cells per 1,000 steps | pending | — |
 | 2026-10-31 | Use-dependent action head creates a reliable eat reflex | P(eat \| food) vs P(eat \| none) | pending | — |
-| 2026-10-31 | SOTF selection raises the eat reflex | food rate of top vs bottom; reflex probe | running: session 3 at 847,084, top 8 + 24 children at rising; reflex pending | — |
+| 2026-10-31 | SOTF selection raises the eat reflex | food rate of top vs bottom; reflex probe | failed: 5 sessions, 24 children died each round, pop 8; SOTF off | failed at current carrying capacity |
