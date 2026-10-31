@@ -11,7 +11,8 @@ stop.
 ## What runs
 
 - One private 48x48 room per body. Walls, food, partial sight.
-- A body with 14 senses: 8 whiskers, local food, food gradient, heading, energy.
+- A body with 14 senses: 8 whiskers, local food, food gradient in the body frame
+  (ahead, left), heading, energy.
 - Four actions: forward, left, right, eat.
 - A 128-unit GRU. The policy head is frozen inside a life. The recurrent body
   and the prediction head learn, every step, to predict the next observation.

@@ -88,13 +88,16 @@ class Fields:
 
         sin = torch.sin(heading)
         cos = torch.cos(heading)
+        # same food direction, but in the body frame: ahead and to the left
+        fwd = (gx * cos + gy * sin).clamp(-1.0, 1.0)
+        left = (-gx * sin + gy * cos).clamp(-1.0, 1.0)
         en = (energy / 100.0).clamp(0.0, 2.0)
 
         return torch.cat([
             whisk,
             food_here[:, None],
-            gx[:, None],
-            gy[:, None],
+            fwd[:, None],
+            left[:, None],
             sin[:, None],
             cos[:, None],
             en[:, None],

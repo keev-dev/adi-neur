@@ -226,6 +226,7 @@ class Simulation:
                     "pred_err": round(float(self.pop.pred_err[f]), 6),
                     "coverage": round(float(self.pop.visited[f].float().mean()), 4),
                     "path": round(float(self.pop.path[f]), 2),
+                    "sense": "body",
                     "sal": [round(float(v), 5) for v in self.pop.salience[f]],
                     "h": [round(float(v), 4) for v in self.pop.h[f]],
                     "obs": [round(float(v), 4) for v in self.pop.obs_prev[f]],

@@ -195,6 +195,7 @@ class Population:
                 "seat": slot,
                 "step": self.step_i,
                 "density": self.food_density,
+                "sense": "body",
             }
             name = f"gen_{int(self.gen[slot]):04d}_id{int(self.ids[slot])}.pt"
             torch.save(payload, d / name)
