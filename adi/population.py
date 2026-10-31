@@ -34,6 +34,7 @@ class Population:
         self.base_cap = 100.0
         self.cap_growth = 0.00001
         self.energy_cap = torch.full((self.N,), self.base_cap)
+        self.action_score = torch.zeros(self.N, cfg.act_dim)
         self.min_pop = cfg.min_pop
         self.cycle_on = False
         self.cycle_low = 0.006
@@ -114,6 +115,12 @@ class Population:
         self.age[slot] = 0
         self.energy[slot] = cfg.start_energy if parent_slot is None else cfg.child_energy
         self.energy_cap[slot] = self.base_cap
+        if parent_slot is None:
+            self.action_score[slot] = torch.randn(cfg.act_dim) * 0.01
+        else:
+            # the child gets half of the parent's action score, plus noise
+            self.action_score[slot] = (0.5 * self.action_score[parent_slot]
+                                       + torch.randn(cfg.act_dim) * 0.02)
         self.fields.new(slot, self.rng, self.food_density)
         self.x[slot], self.y[slot], self.heading[slot] = self.fields.random_pos(slot, self.rng)
         self.h[slot].zero_()
@@ -297,17 +304,26 @@ class Population:
 
         # 2. think
         h2, pred, logits = self.brains.forward(inp, self.h)
+        logits = logits + self.action_score * 0.5
         logits = torch.clamp(logits, -20.0, 20.0)
         probs = torch.softmax(logits, dim=1)
         probs = torch.nan_to_num(probs, nan=1.0 / cfg.act_dim)
         actions = torch.multinomial(probs, 1).squeeze(1)
 
         # 3. act
+        energy_before = self.energy.clone()
         x0 = self.x.clone()
         y0 = self.y.clone()
         self.x, self.y, self.heading, self.energy, self.eaten = self.fields.apply(
             actions, self.x, self.y, self.heading, self.energy, self.eaten)
         self.fields.regen()
+        # action score: food eaten credits eat and the move that led to it
+        gain = ((self.energy - energy_before) / cfg.bite).clamp(0.0, 1.0)
+        got = gain > 0.01
+        if bool(got.any()):
+            self.action_score[self.ar, actions] += 0.10 * gain * got
+            self.action_score[self.ar, self.prev] += 0.05 * gain * got
+        self.action_score.mul_(0.9995).clamp_(-2.0, 4.0)
         moved = torch.sqrt((self.x - x0) ** 2 + (self.y - y0) ** 2)
         self.path = self.path + moved
         cy = self.y.long().clamp(0, cfg.grid - 1)
@@ -465,6 +481,7 @@ class Population:
                 "base_cap": self.base_cap,
                 "cap_growth": self.cap_growth,
                 "energy_cap": self.energy_cap.clone(),
+                "action_score": self.action_score.clone(),
                 "min_pop": self.min_pop,
                 "cycle_on": self.cycle_on,
                 "cycle_low": self.cycle_low,
@@ -511,6 +528,10 @@ class Population:
             self.energy_cap.copy_(d["energy_cap"])
         else:
             self.energy_cap.fill_(self.base_cap)
+        if "action_score" in d:
+            self.action_score.copy_(d["action_score"])
+        else:
+            self.action_score.zero_()
         self.min_pop = int(d.get("min_pop", self.cfg.min_pop))
         self.cycle_on = bool(d.get("cycle_on", False))
         self.cycle_low = float(d.get("cycle_low", 0.006))

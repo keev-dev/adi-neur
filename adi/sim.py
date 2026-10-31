@@ -227,6 +227,7 @@ class Simulation:
                     "coverage": round(float(self.pop.visited[f].float().mean()), 4),
                     "path": round(float(self.pop.path[f]), 2),
                     "sense": "body",
+                    "scores": [round(float(v), 4) for v in self.pop.action_score[f]],
                     "sal": [round(float(v), 5) for v in self.pop.salience[f]],
                     "h": [round(float(v), 4) for v in self.pop.h[f]],
                     "obs": [round(float(v), 4) for v in self.pop.obs_prev[f]],
@@ -396,6 +397,7 @@ class Simulation:
                     "probs": [round(float(v), 3) for v in self.pop.probs[i]],
                     "action": int(self.pop.actions[i]),
                     "pred_err": round(float(self.pop.pred_err[i]), 5),
+                    "scores": [round(float(v), 3) for v in self.pop.action_score[i]],
                     "vitality": round(vitality(en, ea, ag, gn) if alive else 0.0, 3),
                     "focused": i == f,
                 })
@@ -483,6 +485,7 @@ class Simulation:
                 "age": ag,
                 "energy": round(en, 2),
                 "cap": round(float(self.pop.energy_cap[f]), 6),
+                "scores": [round(float(v), 3) for v in self.pop.action_score[f]],
                 "x": round(float(self.pop.x[f]), 2),
                 "y": round(float(self.pop.y[f]), 2),
                 "heading": round(float(self.pop.heading[f]), 3),

@@ -331,6 +331,18 @@
     });
     $("pause").classList.toggle("on", state.paused);
     $("pause").textContent = state.paused ? "resume" : "pause";
+
+    const a = state.agent;
+    if(a){
+      const hue = a.hue || 35;
+      $("hud").innerHTML =
+        `<div class="k" style="color:hsl(${hue} 75% 68%)">${a.name} · seat ${a.slot} · gen ${a.gen}</div>` +
+        `<div class="v">${a.energy.toFixed(1)}<em>energy</em></div>` +
+        `<div class="k">age ${a.age} · eaten ${a.eaten} · cap ${(a.cap || 0).toFixed(4)} · ${a.action === 3 ? "eat" : ACTIONS[a.action]}</div>` +
+        (a.scores ? `<div class="k">score F${a.scores[0].toFixed(2)} L${a.scores[1].toFixed(2)} R${a.scores[2].toFixed(2)} E${a.scores[3].toFixed(2)}</div>` : "");
+    } else {
+      $("hud").innerHTML = "";
+    }
   }
 
   // ---------------------------------------------------------------- toolbar
