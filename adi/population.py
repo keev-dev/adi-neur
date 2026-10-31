@@ -324,11 +324,14 @@ class Population:
             return
         scores = [self._sotf_score(i) for i in range(self.N)]
         order = sorted(range(self.N), key=lambda i: scores[i], reverse=True)
-        top, near, weak = order[:16], order[16:20], order[20:32]
+        alive_order = [s for s in order if bool(self.alive[s])]
+        top = alive_order[:16]
+        near = alive_order[16:20]
+        weak = alive_order[20:] + [s for s in order if not bool(self.alive[s])]
         self.sotf_session += 1
         self.sotf_last = self.step_i
 
-        top_alive = [s for s in top if bool(self.alive[s])]
+        top_alive = list(top)
         parents = top_alive if top_alive else self.alive.nonzero().flatten().tolist()
         if len(parents) == 0:
             return

@@ -71,10 +71,11 @@ grep -o 'https://[a-zA-Z0-9.-]*trycloudflare.com' /opt/adi/data/tunnels/cf8001.l
 - Energy cap: 100. The cap grows by 0.00001 per step at the cap.
 - Floor: `min_pop` 8.
 - Max age: 0 on both. Aligned for the SOTF A/B.
-- SOTF: on port 8000 only. First round is manual; next automatic every
+- SOTF: on port 8000 only. First round was manual; next automatic every
   100,000 steps. Port 8001 is the continuous control. Groups: top 16 keep;
   ranks 17–20 stay as the experiment group; ranks 21–32 are replaced by
-  children of the top 16. Score = 0.6 current food rate + 0.3 lineage food
+  children of the top 16. The top and near groups are always living rooms.
+  Empty rooms always refill. Score = 0.6 current food rate + 0.3 lineage food
   rate + 0.05 births + 0.001 age. No reward. See `sotf.csv`.
 - Birth rule: `threshold` (replace weakest below 15 energy only).
 - Records reset epoch: 726,084 on port 8000; 756,611 on port 8001. Only bodies
