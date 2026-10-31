@@ -250,8 +250,12 @@
   function moveSeat(d){
     if(!state || !state.roster) return;
     const n = state.roster.length;
-    const cur = state.agent ? state.agent.slot : (state.focus_slot || 0);
-    takeSeat((cur + d + n) % n);
+    const cur = state.agent ? state.agent.slot : (state.focus_slot ?? 0);
+    for(let k=1;k<=n;k++){
+      const s = ((cur + d*k) % n + n) % n;
+      const r = state.roster[s];
+      if(r && r.alive){ takeSeat(s); return; }
+    }
   }
   function takeSeat(slot){ send({cmd:"focus", slot}); dirty = true; }
   $("prev").onclick = () => moveSeat(-1);
@@ -367,7 +371,12 @@
     const c = $("world");
     const {ctx,W,H} = fit(c);
     if(!state || !state.world || !state.agent){
-      text(ctx, "waiting for a line...", W/2, H/2, "#2a3648", 12, "center");
+      let msg = "waiting for a line...";
+      if(state && state.focus_slot != null && state.roster && state.roster[state.focus_slot]){
+        const r = state.roster[state.focus_slot];
+        msg = `seat ${r.slot} · ${r.name} · ${r.alive ? "waiting for data" : "no body in this seat"}`;
+      }
+      text(ctx, msg, W/2, H/2, "#2a3648", 12, "center");
       return;
     }
     const G = state.world.size, a = state.agent, w = state.world;

@@ -194,12 +194,17 @@ class Simulation:
             self.pop.step()
             f = self._focus_slot()
             if f is None:
-                if self.focus_mode == "manual":
+                if self.focus_mode != "manual":
+                    self._refocus()
+                    f = self._focus_slot()
+                if f is None:
+                    now = time.perf_counter()
+                    if now - self._last_pub >= 1.0 / self.cfg.snap_hz:
+                        self.latest = self._build_snapshot()
+                        self._last_pub = now
+                    if self.checkpoint_path and now - self._last_ckpt >= 600.0:
+                        self.save_checkpoint()
                     return
-                self._refocus()
-                f = self._focus_slot()
-            if f is None:
-                return
 
             self.trail.append((float(self.pop.x[f]), float(self.pop.y[f])))
 
