@@ -12,8 +12,9 @@ control. On 2026-10-31 the action head moved to use-dependent inheritance at
 birth, and the score boards were reset so the next records belong to this
 mechanism. The post-reset population swings from 8 in the lean phase to 32 in
 the plenty phase. Session 6 (step 967,929) refilled the 24 empty rooms at the
-plenty start, but all 24 children died in the fall/lean; 8000 is back to 8.
-The 8001 control is at 32. The UI has a live SOTF panel.
+plenty start, but all 24 children died in the fall/lean. Session 7 (step
+973,929) filled 32 again; its 24 children face the next lean. The 8001 control
+peaked at 32 and is at 22 in the lean. The UI has a live SOTF panel.
 
 ## Where it runs
 
@@ -85,10 +86,10 @@ grep -o 'https://[a-zA-Z0-9.-]*trycloudflare.com' /opt/adi/data/tunnels/cf8001.l
 - Floor: `min_pop` 8.
 - Max age: 0 on both. Aligned for the SOTF A/B.
 - SOTF: **on 8000** since 2026-10-31, interval 6,000. Session 6 ran at step
-  967,929 (plenty start): 8 kept, 24 empty rooms refilled from the top 8, and
-  the population reached 32. All 24 children then died in the fall/lean; 8000
-  is back to 8. Session 7 is due at step 973,929 (the next plenty start). Port
-  8001 is the continuous control (SOTF off) and is at 32.
+  967,929 (plenty start) filled 32, but all 24 children died in the fall/lean.
+  Session 7 (step 973,929) filled 32 again; its 24 children face the next
+  lean. Session 8 is due at step 979,929. Port 8001 is the continuous control
+  (SOTF off); it peaked at 32 and is at 22 in the lean.
 - Birth rule: `threshold` (replace weakest below 15 energy only).
 - Records reset epoch: 920,133 on port 8000; 943,206 on port 8001 (reset
   2026-10-31 after the use-inheritance deploy). Only bodies born after these
@@ -127,13 +128,16 @@ SOTF history so far, in `20261031_132511_s7/sotf.csv`:
 - Session 5, step 859,084: 24 children; all died; population 8. SOTF off.
 - Session 6, step 967,929: plenty start. 8 kept; 24 empty rooms refilled from
   the top 8; population 32. All 24 children died in the fall/lean; 8000 back
-  to 8. Top: Yama 7.62, Agni 4.91, Indra 4.60. Session 7 is due at step
+  to 8. Top: Yama 7.62, Agni 4.91, Indra 4.60. Session 7 followed at step
   973,929.
+- Session 7, step 973,929: plenty start. 8 kept; 24 empty rooms refilled from
+  the top 8; population 32. Top: Brahma 5.53, Surya 5.00, Varuna 4.48. The 24
+  children face the next lean. Session 8 is due at step 979,929.
 - SOTF is on 8000; 8001 is the control. The use-inheritance code is live on
   both. The population swings with the food cycle: 8000 filled 32 at the
-  plenty start, then fell to 8 in the lean; the 8001 control held 32 into the
-  plenty at step ~995k. New records: 8000 51 eaten / 11,580 life; 8001
-  90 / 21,841.
+  plenty start, fell to 8 in the lean, then session 7 filled 32 again. The
+  8001 control peaked at 32 and was at 22 in the lean at step ~998k. New
+  records: 8000 51 eaten / 11,580 life; 8001 90 / 21,841.
 
 Trace rows carry `sense: body` after the body-frame change. Rows without it
 use the old world-frame senses. Do not mix them in one analysis.
@@ -216,11 +220,11 @@ use-inheritance head has been live for enough generations.
   remove wall lineages.
 - Pre-body-frame generation files are not valid for the current eval.
 - The old best records (88 / 355) are discarded by the epoch reset.
-- SOTF children died in every session. Sessions 2-5 added 24 children; all
-  died. Session 6 (step 967,929, plenty start) filled 32 seats, but all 24
-  children died in the fall/lean; 8000 is back to 8. The 8001 control is at 32
-  with best 90 / 21,841. The SOTF children are not surviving the lean; session
-  7 is the next test.
+- SOTF children died in every session. Sessions 2-6 filled rooms, but all 24
+  new children died by the lean. Session 7 (step 973,929) filled 32 again; its
+  24 children face the next lean. The 8001 control peaked at 32 and is at 22
+  in the lean, best 90 / 21,841. The SOTF children are not surviving; session
+  8 is the next test.
 - The reset cleared the score boards, not the parents’ action heads. The
   current bodies carry heads grown under the old per-step rule; the new
   effective-use rule applies from birth onward. Selection must remove any
@@ -238,9 +242,10 @@ use-inheritance head has been live for enough generations.
   or energy as a reward. The parent’s head is fixed for life.
 - The action score is a record only.
 - SOTF is on 8000, timed to the plenty start, interval 6,000; 8001 is the
-  control. Session 6 filled 32 seats, but all 24 children died in the
-  fall/lean; 8000 is back to 8. Session 7 is the next test; if it fails, turn
-  SOTF off or fix the child/lean energy. The reliable reflex is still the goal.
+  control. Sessions 6 and 7 filled 32 seats, but the session 6 children all
+  died in the fall/lean. Session 7's children are the next test; if they fail,
+  turn SOTF off or fix the child/lean energy. The reliable reflex is still the
+  goal.
 - SOTF stats are part of the UI: the viewer strip shows the next session and
   the last top 3; the stats page shows the last session, the bests, the group
   counts, and the live contenders.
@@ -249,9 +254,10 @@ use-inheritance head has been live for enough generations.
 
 ## Next steps
 
-1. Session 6's 24 children all died in the fall/lean; 8000 is back to 8.
-   Watch session 7 at step 973,929 (plenty start). If it fails, turn SOTF off
-   or fix the child/lean energy. The 8001 control is at 32. The SOTF panel
+1. Session 6's 24 children all died in the fall/lean. Session 7 (step
+   973,929) filled 32 again; its 24 children face the next lean. Watch
+   session 8 at step 979,929. If the children fail, turn SOTF off or fix the
+   child/lean energy. The 8001 control is at 22 in the lean. The SOTF panel
    shows the top performers and group transitions.
 2. Verify the wall fix: watch whether new children stop spamming forward at
    walls; check the action share over the next generations.
@@ -275,6 +281,7 @@ observer ablation still look novel.
 | 2026-10-31 | Use-dependent action head creates a reliable eat reflex | P(eat \| food) vs P(eat \| none) | pending | — |
 | 2026-10-31 | SOTF selection raises the eat reflex | food rate of top vs bottom; reflex probe | failed: 5 sessions, 24 children died each round, pop 8; SOTF off | failed at current carrying capacity |
 | 2026-10-31 | Use-dependent inheritance at birth removes wall spam | action share; wall escapes; P(eat \| food) | running from reset epochs 920,133 / 943,206 | pending |
-| 2026-10-31 | Food-cycle carrying capacity is phase-dependent | population over a cycle | both reached 32; 8001 90 / 21,841, 8000 51 / 11,580 | observed; SOTF filled 32 then the children died |
+| 2026-10-31 | Food-cycle carrying capacity is phase-dependent | population over a cycle | 8001 control peaked at 32, 22 in the lean; 8001 90 / 21,841, 8000 51 / 11,580 | observed; SOTF filled 32, children died by the lean |
 | 2026-10-31 | SOTF at the plenty start can fill 32 seats | session 6 population | 24 children, pop 32; top Yama 7.62; all 24 died by the lean; 8000 back to 8 | filled 32, failed lean survival |
+| 2026-10-31 | SOTF session 7 fills 32 at the plenty start | session 7 population | 24 children, pop 32; top Brahma 5.53 | observed; lean survival pending |
 | 2026-10-31 | SOTF stats in the UI show the best performers | viewer strip + stats page | live; last session and live contenders | done |
