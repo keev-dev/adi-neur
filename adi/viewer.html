@@ -96,6 +96,23 @@
   }
   .card h3 span{color:var(--faint); letter-spacing:.05em; text-transform:none; font-weight:400}
   .card canvas{flex:1; min-height:0; width:100%; display:block}
+  @media (max-width: 760px){
+    header{height:auto; min-height:40px; flex-wrap:wrap; gap:8px; padding:6px 10px}
+    .stats{display:none}
+    .links{display:none}
+    .controls{margin-left:auto}
+    .toolbar{height:auto; flex-wrap:wrap; gap:8px; padding:6px 10px}
+    .toolbar .spacer{display:none}
+    .toolbar label{font-size:9px}
+    .toolbar select{font-size:10px; padding:2px 4px}
+    main{height:calc(100vh - 118px); padding:6px; gap:6px}
+    .hud .v{font-size:13px}
+    .hud .k{font-size:9px}
+    .legend{display:none}
+    .foot{display:none}
+    .seatbar .meta{display:none}
+    .seatbar select{flex:1; min-width:0}
+  }
 </style>
 </head>
 <body>
