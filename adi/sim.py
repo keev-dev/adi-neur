@@ -314,6 +314,11 @@ class Simulation:
                 self.pop.max_age = max(0, int(msg.get("value", 0)))
             elif cmd == "food_density":
                 self.pop.set_food_density(float(msg.get("value", self.cfg.fertility)))
+            elif cmd == "energy_cap":
+                v = float(msg.get("value", 100.0))
+                self.pop.base_cap = v
+                self.pop.energy_cap.fill_(v)
+                self.pop.energy = torch.minimum(self.pop.energy, self.pop.energy_cap)
             elif cmd == "focus":
                 if msg.get("mode") == "auto":
                     self.focus_mode = "auto"
@@ -342,6 +347,7 @@ class Simulation:
             self.latest["churn"] = self.pop.birth_mode != "off"
             self.latest["max_age"] = self.pop.max_age
             self.latest["food_density"] = round(float(self.pop.food_density), 4)
+            self.latest["energy_cap"] = round(float(self.pop.base_cap), 4)
         return self.latest
 
     def _build_snapshot(self) -> dict:
@@ -365,6 +371,7 @@ class Simulation:
                     "gen": gn,
                     "age": ag,
                     "energy": round(max(0.0, en), 1),
+                    "cap": round(float(self.pop.energy_cap[i]), 6),
                     "eaten": int(ea),
                     "rate": round(ea / max(1, ag) * 1000.0, 2),
                     "coverage": round(float(self.pop.visited[i].float().mean()), 4),
@@ -407,6 +414,7 @@ class Simulation:
                 "birth_mode": self.pop.birth_mode,
                 "max_age": self.pop.max_age,
                 "food_density": round(float(self.pop.food_density), 4),
+                "energy_cap": round(float(self.pop.base_cap), 4),
                 "stats": stats,
                 "roster": roster,
                 "seat_stats": seat_stats,
@@ -450,6 +458,7 @@ class Simulation:
                 "gen": gn,
                 "age": ag,
                 "energy": round(en, 2),
+                "cap": round(float(self.pop.energy_cap[f]), 6),
                 "x": round(float(self.pop.x[f]), 2),
                 "y": round(float(self.pop.y[f]), 2),
                 "heading": round(float(self.pop.heading[f]), 3),

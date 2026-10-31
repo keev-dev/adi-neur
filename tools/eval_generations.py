@@ -23,7 +23,7 @@ from adi.config import Config
 from adi.world import Fields
 
 
-def evaluate(brain, cfg, seed, steps):
+def evaluate(brain, cfg, seed, steps, cap=100.0):
     torch.manual_seed(seed)
     rng = np.random.default_rng(seed)
     fields = Fields(cfg, 1)
@@ -33,7 +33,8 @@ def evaluate(brain, cfg, seed, steps):
     xt = torch.tensor([x], dtype=torch.float32)
     yt = torch.tensor([y], dtype=torch.float32)
     ht = torch.tensor([heading], dtype=torch.float32)
-    en = torch.tensor([cfg.start_energy], dtype=torch.float32)
+    en = torch.tensor([min(cfg.start_energy, cap)], dtype=torch.float32)
+    cap_now = float(cap)
     eaten_t = torch.zeros(1)
     h = torch.zeros(1, cfg.hidden)
     prev = 0
@@ -68,6 +69,9 @@ def evaluate(brain, cfg, seed, steps):
         xt, yt, ht, en, eaten_t = fields.apply(
             torch.tensor([a]), xt, yt, ht, en, eaten_t)
         fields.regen()
+        if float(en) >= cap_now - 1e-6:
+            cap_now += 0.00001
+        en = torch.minimum(en, torch.tensor([cap_now], dtype=torch.float32))
         en = en - cfg.metabolic
 
         path += float(torch.sqrt((xt - x0) ** 2 + (yt - y0) ** 2))
@@ -90,6 +94,7 @@ def main():
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--every", type=int, default=5)
     ap.add_argument("--density", type=float, default=None)
+    ap.add_argument("--cap", type=float, default=100.0)
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -115,7 +120,7 @@ def main():
         density = (args.density if args.density is not None
                    else float(d.get("meta", {}).get("density", base_cfg.fertility)))
         cfg = dataclasses.replace(base_cfg, fertility=density)
-        res = [evaluate(d, cfg, s, args.steps) for s in range(args.seeds)]
+        res = [evaluate(d, cfg, s, args.steps, args.cap) for s in range(args.seeds)]
         n = len(res)
         row = {
             "gen": gen,

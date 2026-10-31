@@ -15,14 +15,15 @@
   .meta b{color:var(--text)}
   nav a{color:var(--dim);text-decoration:none;margin-left:14px}
   nav a:hover{color:var(--text)}
-  .wrap{padding:14px 16px}
+  .wrap{padding:14px 16px;overflow-x:auto}
   .bar{display:flex;align-items:center;gap:14px;margin-bottom:10px;color:var(--dim)}
   .bar label{cursor:pointer}
   .bar select{background:#0e131b;color:var(--text);border:1px solid var(--line);border-radius:4px;padding:3px 5px;font:inherit;font-size:11px}
   table{width:100%;border-collapse:collapse}
   th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
   th{color:var(--dim);font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;position:sticky;top:0;background:var(--bg)}
-  th:nth-child(2),td:nth-child(2),th:nth-child(11),td.mix{text-align:left}
+  th:nth-child(2),td:nth-child(2){text-align:left}
+  th.mix,td.mix{text-align:left}
   tbody tr{cursor:pointer}
   tbody tr:hover{background:#0e131b}
   tr.top td{background:rgba(255,180,84,.07)}
@@ -54,8 +55,8 @@
   <table>
     <thead>
       <tr>
-        <th>seat</th><th>name</th><th>id</th><th>gen</th><th>age</th><th>energy</th>
-        <th>eaten</th><th>rate</th><th>cover</th><th>path</th><th>actions</th><th>err</th>
+        <th>seat</th><th>name</th><th>id</th><th>gen</th><th>age</th><th>energy</th><th>cap</th>
+        <th>eaten</th><th>rate</th><th>cover</th><th>path</th><th class="mix">actions</th><th>err</th>
       </tr>
     </thead>
     <tbody id="rows"></tbody>
@@ -81,6 +82,7 @@ async function tick(){
         <td>${r.slot}</td>
         <td><b style="color:hsl(${r.hue} 75% 66%)">${r.name}</b></td>
         <td>${r.id}</td><td>${r.gen}</td><td>${r.age}</td><td>${r.energy.toFixed(1)}</td>
+        <td>${(r.cap || 0).toFixed(4)}</td>
         <td>${r.eaten}</td><td>${(r.rate||0).toFixed(1)}</td>
         <td>${((r.coverage||0)*100).toFixed(1)}%</td><td>${(r.path||0).toFixed(0)}</td>
         <td class="mix">${act}</td><td>${(r.pred_err||0).toFixed(4)}</td>

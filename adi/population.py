@@ -30,6 +30,9 @@ class Population:
         self.min_replace_age = 200
         self.max_age = 0                  # 0 = off
         self.food_density = cfg.fertility
+        self.base_cap = 100.0
+        self.cap_growth = 0.00001
+        self.energy_cap = torch.full((self.N,), self.base_cap)
         self.visited = torch.zeros(self.N, cfg.grid, cfg.grid, dtype=torch.bool)
         self.path = torch.zeros(self.N)
         self.obs_prev = torch.zeros(self.N, cfg.obs_dim)
@@ -102,6 +105,7 @@ class Population:
         self.gen[slot] = gen
         self.age[slot] = 0
         self.energy[slot] = cfg.start_energy if parent_slot is None else cfg.child_energy
+        self.energy_cap[slot] = self.base_cap
         self.fields.new(slot, self.rng, self.food_density)
         self.x[slot], self.y[slot], self.heading[slot] = self.fields.random_pos(slot, self.rng)
         self.h[slot].zero_()
@@ -270,6 +274,11 @@ class Population:
         cx = self.x.long().clamp(0, cfg.grid - 1)
         self.visited[self.ar, cy, cx] = True
 
+        # 3b. energy ceiling
+        at_cap = self.alive & (self.energy >= self.energy_cap - 1e-6)
+        self.energy_cap = torch.where(at_cap, self.energy_cap + self.cap_growth, self.energy_cap)
+        self.energy = torch.minimum(self.energy, self.energy_cap)
+
         # 4. burn
         self.energy = self.energy - cfg.metabolic
         self.age = self.age + self.alive.long()
@@ -408,6 +417,9 @@ class Population:
                 "min_replace_age": self.min_replace_age,
                 "max_age": self.max_age,
                 "food_density": self.food_density,
+                "base_cap": self.base_cap,
+                "cap_growth": self.cap_growth,
+                "energy_cap": self.energy_cap.clone(),
                 "max_gen_saved": self.max_gen_saved,
                 "seat_stats": [dict(s) for s in self.seat_stats],
             }
@@ -442,6 +454,12 @@ class Population:
         self.min_replace_age = int(d.get("min_replace_age", 200))
         self.max_age = int(d.get("max_age", 0))
         self.food_density = float(d.get("food_density", self.cfg.fertility))
+        self.base_cap = float(d.get("base_cap", 100.0))
+        self.cap_growth = float(d.get("cap_growth", 0.00001))
+        if "energy_cap" in d:
+            self.energy_cap.copy_(d["energy_cap"])
+        else:
+            self.energy_cap.fill_(self.base_cap)
         self.max_gen_saved = int(d.get("max_gen_saved", 0))
         if "seat_stats" in d:
             for i, s in enumerate(d["seat_stats"][: self.N]):

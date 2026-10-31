@@ -50,7 +50,7 @@ async function tick(){
   try{
     const d = await (await fetch('/state')).json();
     const s = d.stats;
-    $('meta').innerHTML = `step <b>${d.step.toLocaleString()}</b> · pop <b>${s.pop}</b> · gen <b>${s.max_gen}</b> · best <b>${s.best_eaten.toFixed(0)}</b> · food <b>${(d.food_density*100).toFixed(0)}%</b> · max age <b>${d.max_age ? d.max_age.toLocaleString() : "off"}</b>`;
+    $('meta').innerHTML = `step <b>${d.step.toLocaleString()}</b> · pop <b>${s.pop}</b> · gen <b>${s.max_gen}</b> · best <b>${s.best_eaten.toFixed(0)}</b> · food <b>${(d.food_density*100).toFixed(0)}%</b> · cap <b>${d.energy_cap}</b> · max age <b>${d.max_age ? d.max_age.toLocaleString() : "off"}</b>`;
     const rows = d.seat_stats.slice().sort((a,b) => a.slot - b.slot);
     let tb=0, td=0, wl=0, wf=0, bf=0;
     for(const r of rows){ tb+=r.births; td+=r.deaths; wl+=r.mean_life*r.deaths; wf+=r.mean_food*r.deaths; bf=Math.max(bf,r.best_food); }

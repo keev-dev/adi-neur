@@ -275,7 +275,7 @@
       $("hud").innerHTML =
         `<div class="k" style="color:hsl(${hue} 75% 68%)">${a.name} · seat ${a.slot} · gen ${a.gen}</div>` +
         `<div class="v">${a.energy.toFixed(1)}<em>energy</em></div>` +
-        `<div class="k">age ${a.age} · eaten ${a.eaten} · ${a.action === 3 ? "eat" : ACTIONS[a.action]}</div>`;
+        `<div class="k">age ${a.age} · eaten ${a.eaten} · cap ${(a.cap || 0).toFixed(4)} · ${a.action === 3 ? "eat" : ACTIONS[a.action]}</div>`;
       $("pinfo").textContent = `err ${a.pred_err.toFixed(4)}`;
       $("uinfo").textContent = `${state.stats.pop} alive · ${a.units.length} units`;
       const leg = $("legadi");
@@ -323,7 +323,7 @@
       d.classList.toggle("dead", !r.alive);
       d.classList.toggle("pulse", (pulseUntil.get(i) || 0) > now);
       d.title = r.alive
-        ? `${r.name} · seat ${r.slot} · id ${r.id} · gen ${r.gen} · age ${r.age} · energy ${r.energy.toFixed(1)} · eaten ${r.eaten}`
+        ? `${r.name} · seat ${r.slot} · id ${r.id} · gen ${r.gen} · age ${r.age} · energy ${r.energy.toFixed(1)} · cap ${(r.cap || 0).toFixed(4)} · eaten ${r.eaten}`
         : `${r.name} · seat ${r.slot} · empty`;
     });
   }
