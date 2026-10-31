@@ -13,6 +13,7 @@ import numpy as np
 import torch
 
 from .brain import BatchedBrains
+from .names import NAMES
 from .world import Fields
 
 MOVE, LEFT, RIGHT, EAT = 0, 1, 2, 3
@@ -42,6 +43,11 @@ class Population:
         self.cycle_period = 6000
         self.cycle_phase = 0.0
         self.cycle_step = 100
+        self.sotf_enabled = False
+        self.sotf_interval = 0
+        self.sotf_last = 0
+        self.sotf_session = 0
+        self.sotf_tier = torch.full((self.N,), -1, dtype=torch.long)
         self.visited = torch.zeros(self.N, cfg.grid, cfg.grid, dtype=torch.bool)
         self.path = torch.zeros(self.N)
         self.obs_prev = torch.zeros(self.N, cfg.obs_dim)
@@ -301,6 +307,79 @@ class Population:
         self.lifetimes.clear()
         self.seat_stats = [self._fresh_seat_stats() for _ in range(self.N)]
 
+    def _sotf_score(self, slot: int) -> float:
+        st = self.seat_stats[slot]
+        age = int(self.age[slot])
+        eaten = float(self.eaten[slot])
+        current = (eaten / max(1, age)) * 1000.0
+        lineage = (st["total_eaten"] / max(1, st["total_life"])) * 1000.0
+        births = int(st["births"])
+        dead = -1000.0 if not bool(self.alive[slot]) else 0.0
+        return dead + 0.6 * current + 0.3 * lineage + 0.05 * min(births, 20) + 0.001 * age
+
+    def sotf_round(self) -> None:
+        """One selection round. Top 16 keep. 17-20 stay as the experiment group.
+        21-32 are replaced by children of the top 16. No reward, no teaching."""
+        if not bool(self.alive.any()):
+            return
+        scores = [self._sotf_score(i) for i in range(self.N)]
+        order = sorted(range(self.N), key=lambda i: scores[i], reverse=True)
+        top, near, weak = order[:16], order[16:20], order[20:32]
+        self.sotf_session += 1
+        self.sotf_last = self.step_i
+
+        top_alive = [s for s in top if bool(self.alive[s])]
+        parents = top_alive if top_alive else self.alive.nonzero().flatten().tolist()
+        if len(parents) == 0:
+            return
+        weights = [max(0.01, scores[s]) for s in parents]
+        total = sum(weights)
+        weights = [w / total for w in weights]
+
+        for rank, slot in enumerate(order):
+            if slot in top:
+                group, tier = "top", 0
+            elif slot in near:
+                group, tier = "near", 1
+            else:
+                group, tier = "weak", 2
+            self.sotf_tier[slot] = tier
+            st = self.seat_stats[slot]
+            row = {
+                "session": self.sotf_session,
+                "step": self.step_i,
+                "room": slot,
+                "name": NAMES[slot] if slot < len(NAMES) else f"seat-{slot}",
+                "group_before": group,
+                "rank": rank + 1,
+                "score": round(scores[slot], 4),
+                "food_rate": round((float(self.eaten[slot]) / max(1, int(self.age[slot]))) * 1000.0, 4),
+                "lineage_rate": round((st["total_eaten"] / max(1, st["total_life"])) * 1000.0, 4),
+                "births": int(st["births"]),
+                "group_after": group,
+                "action": "keep",
+                "parent_room": -1,
+                "parent_id": -1,
+                "child_id": -1,
+            }
+            if slot in weak:
+                idx = int(self.rng.choice(len(parents), p=weights))
+                parent_slot = parents[idx]
+                parent_id = int(self.ids[parent_slot])
+                if bool(self.alive[slot]):
+                    self._die(slot)
+                self.seat_stats[slot] = self._fresh_seat_stats()
+                self.spawn(slot, parent_slot)
+                row.update({
+                    "group_after": "replaced",
+                    "action": "refill",
+                    "parent_room": parent_slot,
+                    "parent_id": parent_id,
+                    "child_id": int(self.ids[slot]),
+                })
+            self.log.sotf(row)
+        self.log.flush()
+
     # ------------------------------------------------------------------ step
     def step(self) -> None:
         cfg = self.cfg
@@ -453,6 +532,10 @@ class Population:
             if int(self.cycle_phase) % self.cycle_step == 0:
                 self.set_food_density(self.cycle_target())
 
+        if (self.sotf_enabled and self.sotf_interval > 0
+                and (self.step_i - self.sotf_last) >= self.sotf_interval):
+            self.sotf_round()
+
         self.step_i += 1
 
     # ------------------------------------------------------------ checkpoint
@@ -510,6 +593,11 @@ class Population:
                 "cycle_high": self.cycle_high,
                 "cycle_period": self.cycle_period,
                 "cycle_phase": self.cycle_phase,
+                "sotf_enabled": self.sotf_enabled,
+                "sotf_interval": self.sotf_interval,
+                "sotf_last": self.sotf_last,
+                "sotf_session": self.sotf_session,
+                "sotf_tier": self.sotf_tier.clone(),
                 "max_gen_saved": self.max_gen_saved,
                 "seat_stats": [dict(s) for s in self.seat_stats],
             }
@@ -562,6 +650,12 @@ class Population:
         self.cycle_high = float(d.get("cycle_high", 0.03))
         self.cycle_period = int(d.get("cycle_period", 6000))
         self.cycle_phase = float(d.get("cycle_phase", 0.0))
+        self.sotf_enabled = bool(d.get("sotf_enabled", False))
+        self.sotf_interval = int(d.get("sotf_interval", 0))
+        self.sotf_last = int(d.get("sotf_last", 0))
+        self.sotf_session = int(d.get("sotf_session", 0))
+        if "sotf_tier" in d:
+            self.sotf_tier.copy_(d["sotf_tier"])
         self.max_gen_saved = int(d.get("max_gen_saved", 0))
         if "seat_stats" in d:
             for i, s in enumerate(d["seat_stats"][: self.N]):

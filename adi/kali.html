@@ -55,7 +55,7 @@
   <table>
     <thead>
       <tr>
-        <th>seat</th><th>name</th><th>id</th><th>gen</th><th>age</th><th>energy</th><th>cap</th>
+        <th>seat</th><th>name</th><th>group</th><th>id</th><th>gen</th><th>age</th><th>energy</th><th>cap</th>
         <th>eaten</th><th>rate</th><th>cover</th><th>path</th><th class="mix">actions</th><th>err</th>
       </tr>
     </thead>
@@ -81,6 +81,7 @@ async function tick(){
       return `<tr class="${cls}" data-slot="${r.slot}">
         <td>${r.slot}</td>
         <td><b style="color:hsl(${r.hue} 75% 66%)">${r.name}</b></td>
+        <td>${r.group || "none"}</td>
         <td>${r.id}</td><td>${r.gen}</td><td>${r.age}</td><td>${r.energy.toFixed(1)}</td>
         <td>${(r.cap || 0).toFixed(4)}</td>
         <td>${r.eaten}</td><td>${(r.rate||0).toFixed(1)}</td>

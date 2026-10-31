@@ -13,6 +13,10 @@ from pathlib import Path
 
 
 class Logger:
+    SOTF_FIELDS = ["session", "step", "room", "name", "group_before", "rank", "score",
+                   "food_rate", "lineage_rate", "births", "group_after", "action",
+                   "parent_room", "parent_id", "child_id"]
+
     def __init__(self, root: Path):
         self.root = Path(root)
         self.root.mkdir(parents=True, exist_ok=True)
@@ -20,16 +24,19 @@ class Logger:
         events = self.root / "events.csv"
         genome = self.root / "genome.csv"
         seats = self.root / "seat_events.csv"
+        sotf = self.root / "sotf.csv"
         traits = self.root / "traits.csv"
         self.trace_path = self.root / "trace.jsonl"
 
         new_events = not events.exists()
         new_genome = not genome.exists()
         new_seats = not seats.exists()
+        new_sotf = not sotf.exists()
 
         self.f_events = open(events, "a", newline="", encoding="utf-8")
         self.f_genome = open(genome, "a", newline="", encoding="utf-8")
         self.f_seats = open(seats, "a", newline="", encoding="utf-8")
+        self.f_sotf = open(sotf, "a", newline="", encoding="utf-8")
         self.f_trace = open(self.trace_path, "a", encoding="utf-8")
 
         if new_events:
@@ -41,6 +48,8 @@ class Logger:
         if new_seats:
             csv.writer(self.f_seats).writerow(
                 ["step", "event", "seat", "id", "parent", "gen", "age", "energy", "eaten"])
+        if new_sotf:
+            csv.writer(self.f_sotf).writerow(self.SOTF_FIELDS)
         if not traits.exists():
             with open(traits, "w", newline="", encoding="utf-8") as f:
                 csv.writer(f).writerow(["id", "name", "probe", "value", "note", "step"])
@@ -58,15 +67,18 @@ class Logger:
         csv.writer(self.f_seats).writerow(
             [step, kind, seat, aid, parent, gen, age, round(energy, 2), int(eaten)])
 
+    def sotf(self, row: dict):
+        csv.DictWriter(self.f_sotf, fieldnames=self.SOTF_FIELDS).writerow(row)
+
     def trace(self, obj: dict):
         self.f_trace.write(json.dumps(obj, separators=(",", ":")) + "\n")
 
     def flush(self):
-        for f in (self.f_events, self.f_genome, self.f_seats, self.f_trace):
+        for f in (self.f_events, self.f_genome, self.f_seats, self.f_sotf, self.f_trace):
             f.flush()
 
     def close(self):
-        for f in (self.f_events, self.f_genome, self.f_seats, self.f_trace):
+        for f in (self.f_events, self.f_genome, self.f_seats, self.f_sotf, self.f_trace):
             try:
                 f.close()
             except Exception:

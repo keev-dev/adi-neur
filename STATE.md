@@ -70,7 +70,12 @@ grep -o 'https://[a-zA-Z0-9.-]*trycloudflare.com' /opt/adi/data/tunnels/cf8001.l
   steps, updated every 100 steps. Port 8000 and 8001 have opposite phases.
 - Energy cap: 100. The cap grows by 0.00001 per step at the cap.
 - Floor: `min_pop` 8.
-- Max age: 8,000 on port 8000; off on port 8001.
+- Max age: 0 on both. Aligned for the SOTF A/B.
+- SOTF: on port 8000 only. First round is manual; next automatic every
+  100,000 steps. Port 8001 is the continuous control. Groups: top 16 keep;
+  ranks 17–20 stay as the experiment group; ranks 21–32 are replaced by
+  children of the top 16. Score = 0.6 current food rate + 0.3 lineage food
+  rate + 0.05 births + 0.001 age. No reward. See `sotf.csv`.
 - Birth rule: `threshold` (replace weakest below 15 energy only).
 - Records reset epoch: 726,084 on port 8000; 756,611 on port 8001. Only bodies
   born after these steps count for `best eat` / `best life` and the per-seat
@@ -90,8 +95,12 @@ On the VM:
 /opt/adi/data/tunnels/cf8001.log
 ```
 
-Inside a run: `events.csv`, `genome.csv`, `seat_events.csv`, `trace.jsonl`,
-`generations/`, `hall_of_fame/`, `run_meta.json`.
+Inside a run: `events.csv`, `genome.csv`, `seat_events.csv`, `sotf.csv`,
+`trace.jsonl`, `generations/`, `hall_of_fame/`, `run_meta.json`.
+
+`sotf.csv` columns: session, step, room, name, group before, rank, score,
+food rate, lineage rate, births, group after, action, parent room, parent id,
+child id.
 
 Trace rows carry `sense: body` after the body-frame change. Rows without it
 use the old world-frame senses. Do not mix them in one analysis.
@@ -121,6 +130,15 @@ ssh -i "C:\Users\Harsh\.ssh\id_ed25519" ubuntu@129.159.156.155 "cd /opt/adi && b
 
 Without `--restart`, the script checkpoints and pulls but leaves the services
 paused. Use `--restart` for a normal update.
+
+SOTF:
+
+```
+curl -X POST http://127.0.0.1:8000/cmd -H 'Content-Type: application/json' \
+  -d '{"cmd":"sotf_now"}'
+curl -X POST http://127.0.0.1:8000/cmd -H 'Content-Type: application/json' \
+  -d '{"cmd":"sotf","value":1,"interval":100000}'
+```
 
 Local test (port 8010 avoids the tunnel):
 
@@ -169,18 +187,14 @@ head has been live for a while.
 
 ## Next steps
 
-1. Let the use-dependent action head run. Measure `P(eat | food)` vs
-   `P(eat | none)` from the trace and the eat probe. Target: a clear gap, e.g.
+1. SOTF is running on port 8000. Port 8001 is the control. Watch
+   `sotf.csv`: the top 16, the 4 experiment rooms, the 12 refills, and whether
+   the new children rise.
+2. Next automatic SOTF round is 100,000 steps after the first round.
+3. Keep measuring the eat reflex: `P(eat | food)` vs `P(eat | none)`. Target
    above 0.7 vs below 0.2.
-2. If the reflex becomes reliable, run SOTF on one instance:
-   - every 20,000 steps,
-   - top 16 keep, ranks 17–20 experiment, ranks 21–32 refill from top 16,
-   - score: food rate first, births second, age tiebreak,
-   - CSV: session, step, room, group before/after, rank, food rate, parent,
-     child.
-3. Keep the other instance continuous as the control.
-4. Only then scale: trial credits can give 8 OCPU / 16 GB for about 30 days;
-   run 8 seeds of the same experiment, one per core.
+4. If the reflex becomes reliable and SOTF helps, scale: trial credits can give
+   8 OCPU / 16 GB for about 30 days; run 8 seeds of the same experiment.
 5. Then the action-conditioned (what-if) model, only if the reflex is stable.
 
 ## Outside research to compare
@@ -195,3 +209,4 @@ observer ablation still look novel.
 |---|---|---|---|---|
 | 2026-10-31 | Food rate beats age as a selection score | cells per 1,000 steps | pending | — |
 | 2026-10-31 | Use-dependent action head creates a reliable eat reflex | P(eat \| food) vs P(eat \| none) | pending | — |
+| 2026-10-31 | SOTF selection raises the eat reflex | food rate of top vs bottom; reflex probe | pending | — |

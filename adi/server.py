@@ -24,6 +24,7 @@ class Command(BaseModel):
     high: float | None = None
     period: int | None = None
     phase: float | None = None
+    interval: int | None = None
 
 
 def create_app(sim):

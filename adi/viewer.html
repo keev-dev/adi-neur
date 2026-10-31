@@ -324,6 +324,7 @@
       ["deaths", s.deaths],
       ["best eat", s.best_eaten.toFixed(0)],
       ["best life", s.best_life.toLocaleString()],
+      ["sotf", state.sotf_session],
     ];
     $("stats").innerHTML = bits.map(([k,v]) => `<span><i>${k}</i><b>${v}</b></span>`).join("");
     document.querySelectorAll("[data-speed]").forEach(b => {

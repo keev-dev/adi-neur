@@ -35,7 +35,7 @@
   <table>
     <thead>
       <tr>
-        <th>seat</th><th>name</th><th>births</th><th>deaths</th>
+        <th>seat</th><th>name</th><th>group</th><th>births</th><th>deaths</th>
         <th>mean life</th><th>max life</th><th>mean gen</th>
         <th>mean food</th><th>best food</th><th>current</th>
       </tr>
@@ -57,6 +57,7 @@ async function tick(){
     $('rows').innerHTML = rows.map(r => `<tr class="${r.alive?'':'dead'}">
       <td>${r.slot}</td>
       <td>${r.name}</td>
+      <td>${r.group || "none"}</td>
       <td>${r.births}</td><td>${r.deaths}</td>
       <td>${r.deaths? r.mean_life.toFixed(0):"—"}</td><td>${r.max_life||"—"}</td>
       <td>${r.mean_gen.toFixed(1)}</td>

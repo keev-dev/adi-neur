@@ -330,6 +330,15 @@ class Simulation:
                 self.pop.min_pop = max(1, int(msg.get("value", 8)))
             elif cmd == "reset_records":
                 self.pop.reset_records()
+            elif cmd == "sotf_now":
+                self.pop.sotf_round()
+            elif cmd == "sotf":
+                on = bool(msg.get("value", True))
+                self.pop.sotf_enabled = on
+                if msg.get("interval") is not None:
+                    self.pop.sotf_interval = max(0, int(msg["interval"]))
+                if on and self.pop.sotf_last == 0:
+                    self.pop.sotf_last = self.pop.step_i
             elif cmd == "energy_cap":
                 v = float(msg.get("value", 100.0))
                 self.pop.base_cap = v
@@ -368,6 +377,10 @@ class Simulation:
             self.latest["cycle_on"] = self.pop.cycle_on
             self.latest["cycle_label"] = self.pop.cycle_label()
             self.latest["cycle_phase"] = round(float(self.pop.cycle_phase), 1)
+            self.latest["sotf_enabled"] = self.pop.sotf_enabled
+            self.latest["sotf_session"] = self.pop.sotf_session
+            self.latest["sotf_interval"] = self.pop.sotf_interval
+            self.latest["sotf_last"] = self.pop.sotf_last
         return self.latest
 
     def _build_snapshot(self) -> dict:
@@ -400,6 +413,9 @@ class Simulation:
                     "action": int(self.pop.actions[i]),
                     "pred_err": round(float(self.pop.pred_err[i]), 5),
                     "scores": [round(float(v), 3) for v in self.pop.action_score[i]],
+                    "tier": int(self.pop.sotf_tier[i]),
+                    "group": ("none" if int(self.pop.sotf_tier[i]) < 0
+                              else ["top", "near", "weak"][min(int(self.pop.sotf_tier[i]), 2)]),
                     "vitality": round(vitality(en, ea, ag, gn) if alive else 0.0, 3),
                     "focused": i == f,
                 })
@@ -412,6 +428,9 @@ class Simulation:
                     "name": NAMES[i] if i < len(NAMES) else f"seat-{i}",
                     "births": int(st["births"]),
                     "deaths": int(st["deaths"]),
+                    "tier": int(self.pop.sotf_tier[i]),
+                    "group": ("none" if int(self.pop.sotf_tier[i]) < 0
+                              else ["top", "near", "weak"][min(int(self.pop.sotf_tier[i]), 2)]),
                     "mean_life": round(st["total_life"] / max(1, st["deaths"]), 1),
                     "max_life": int(st["max_life"]),
                     "mean_gen": round(st["gen_sum"] / max(1, st["gen_count"]), 2),
@@ -443,6 +462,10 @@ class Simulation:
                 "cycle_period": self.pop.cycle_period,
                 "cycle_phase": round(float(self.pop.cycle_phase), 1),
                 "cycle_label": self.pop.cycle_label(),
+                "sotf_enabled": self.pop.sotf_enabled,
+                "sotf_session": self.pop.sotf_session,
+                "sotf_interval": self.pop.sotf_interval,
+                "sotf_last": self.pop.sotf_last,
                 "stats": stats,
                 "roster": roster,
                 "seat_stats": seat_stats,
