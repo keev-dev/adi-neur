@@ -23,6 +23,28 @@
   tr.dead td{color:#4a5768}
   tr.total td{border-top:1px solid #26344a;color:var(--text);font-weight:600}
   .note{color:#3a4a5f;margin-top:12px;font-size:10px}
+  .sotf{margin-bottom:18px;border:1px solid var(--line);border-radius:9px;background:#0b0f15;padding:10px 12px}
+  .sotf-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px}
+  .sotf .tag{color:var(--dim);border:1px solid var(--line);border-radius:4px;padding:1px 7px;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+  .sotf .tag.on{color:#06080c;background:var(--amber);border-color:var(--amber);font-weight:700}
+  .sotf-next{color:var(--dim);flex:1}
+  .sotf-next b{color:var(--text)}
+  .sotf-phase{color:#3a4a5f;font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+  .sotf-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:8px 0 12px}
+  .sotf-card{background:#0e131b;border:1px solid var(--line);border-radius:6px;padding:6px 8px;min-width:0}
+  .sotf-card span{display:block;color:var(--dim);font-size:9px;letter-spacing:.1em;text-transform:uppercase}
+  .sotf-card b{display:block;color:var(--text);font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .sotf-card em{display:block;color:#3a4a5f;font-style:normal;font-size:9px;margin-top:1px}
+  .sotf-cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .sotf-cols>div{min-width:0;overflow-x:auto}
+  .sotf h3{margin:0 0 6px;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--dim);font-weight:600;display:flex;justify-content:space-between;gap:8px}
+  .sotf h3 span{color:#3a4a5f;letter-spacing:.05em;text-transform:none;font-weight:400}
+  .sotf table{font-size:11px}
+  .sotf th,.sotf td{padding:4px 6px}
+  .sotf th{position:static}
+  .sotf tr.best td{color:var(--amber)}
+  .sotf .note{margin-top:8px}
+  @media(max-width:760px){.sotf-cards{grid-template-columns:1fr 1fr}.sotf-cols{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -32,6 +54,31 @@
   <nav><a href="/">map</a><a href="/kali">kali</a></nav>
 </header>
 <div class="wrap">
+  <section class="sotf" id="sotf">
+    <div class="sotf-top">
+      <span class="tag" id="sotf-tag">SOTF</span>
+      <span class="sotf-next" id="sotf-next">...</span>
+      <span class="sotf-phase" id="sotf-phase"></span>
+    </div>
+    <div class="sotf-cards" id="sotf-cards"></div>
+    <div class="sotf-cols">
+      <div>
+        <h3>last session <span id="sotf-last">—</span></h3>
+        <table>
+          <thead><tr><th>#</th><th>room</th><th>name</th><th>score</th><th>food</th><th>lineage</th><th>births</th><th>group</th><th>action</th><th>parent</th></tr></thead>
+          <tbody id="sotf-last-rows"></tbody>
+        </table>
+      </div>
+      <div>
+        <h3>current contenders <span>live score</span></h3>
+        <table>
+          <thead><tr><th>#</th><th>room</th><th>name</th><th>score</th><th>food</th><th>lineage</th><th>births</th><th>age</th></tr></thead>
+          <tbody id="sotf-current-rows"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="note" id="sotf-note"></div>
+  </section>
   <table>
     <thead>
       <tr>
@@ -46,9 +93,46 @@
 </div>
 <script>
 const $ = id => document.getElementById(id);
+function renderSotf(s, step){
+  if(!s) return;
+  const tag = $('sotf-tag');
+  tag.textContent = s.enabled ? 'SOTF on' : 'SOTF off';
+  tag.classList.toggle('on', !!s.enabled);
+  const left = s.next_step != null ? Math.max(0, s.next_step - step) : null;
+  $('sotf-next').innerHTML = s.enabled && left != null
+    ? `next session <b>${s.session + 1}</b> in <b>${left.toLocaleString()}</b> steps · every <b>${s.interval.toLocaleString()}</b>`
+    : 'not scheduled';
+  $('sotf-phase').textContent = `${s.phase} · phase ${Math.round(s.cycle_phase)}`;
+  const best = s.best, bf = s.best_food, bb = s.best_births;
+  const cards = [
+    ['best score', best ? `${best.name} · ${best.score.toFixed(1)}` : '—', best ? `room ${best.room} · ${best.group_after}` : ''],
+    ['best food rate', bf ? `${bf.name} · ${bf.food_rate.toFixed(1)}/1k` : '—', bf ? `room ${bf.room}` : ''],
+    ['most births', bb ? `${bb.name} · ${bb.births}` : '—', bb ? `room ${bb.room}` : ''],
+    ['groups', `${s.counts.top} top · ${s.counts.near} near · ${s.counts.refill} refill`, `${s.counts.keep} keep`],
+  ];
+  $('sotf-cards').innerHTML = cards.map(([k,v,e]) => `<div class="sotf-card"><span>${k}</span><b>${v}</b><em>${e}</em></div>`).join('');
+  $('sotf-last').textContent = s.last_session
+    ? `session ${s.last_session} · step ${Number(s.last_step).toLocaleString()}${s.last_pre_reset ? ' · pre-reset' : ''}`
+    : 'no session yet';
+  $('sotf-last-rows').innerHTML = (s.top || []).map(r => `<tr class="${best && r.rank === best.rank ? 'best' : ''}">
+    <td>${r.rank}</td><td>${r.room}</td><td>${r.name}</td><td>${r.score.toFixed(1)}</td>
+    <td>${r.food_rate.toFixed(1)}</td><td>${r.lineage_rate.toFixed(1)}</td><td>${r.births}</td>
+    <td>${r.group_before} → ${r.group_after}</td><td>${r.action}</td>
+    <td>${r.action === 'refill' ? `room ${r.parent_room} / id ${r.child_id}` : '—'}</td></tr>`).join('')
+    || `<tr><td colspan="10">no session yet</td></tr>`;
+  $('sotf-current-rows').innerHTML = (s.current || []).map(r => `<tr>
+    <td>${r.rank}</td><td>${r.room}</td><td>${r.name}</td><td>${r.score.toFixed(1)}</td>
+    <td>${r.food_rate.toFixed(1)}</td><td>${r.lineage_rate.toFixed(1)}</td><td>${r.births}</td><td>${r.age}</td></tr>`).join('')
+    || `<tr><td colspan="8">no living bodies</td></tr>`;
+  $('sotf-note').textContent = s.last_session
+    ? `last session: ${s.counts.keep} keep · ${s.counts.refill} refill · top ${s.counts.top} / near ${s.counts.near} / weak ${s.counts.weak}${s.last_pre_reset ? ' · this session is before the score reset; the next session starts the new record' : ''}`
+    : 'No SOTF session yet. The current contenders are ranked with the same score the next session will use.';
+}
 async function tick(){
   try{
     const d = await (await fetch('/state')).json();
+    let so = null;
+    try{ so = await (await fetch('/sotf')).json(); }catch(_){}
     const s = d.stats;
     $('meta').innerHTML = `step <b>${d.step.toLocaleString()}</b> · pop <b>${s.pop}</b> · gen <b>${s.max_gen}</b> · best eat <b>${s.best_eaten.toFixed(0)}</b> · best life <b>${s.best_life.toLocaleString()}</b> · food <b>${(d.food_density*100).toFixed(0)}%</b> · cap <b>${d.energy_cap}</b> · max age <b>${d.max_age ? d.max_age.toLocaleString() : "off"}</b>`;
     const rows = d.seat_stats.slice().sort((a,b) => a.slot - b.slot);
@@ -67,6 +151,7 @@ async function tick(){
     `<tr class="total"><td></td><td>all seats</td><td>${tb}</td><td>${td}</td>
       <td>${td? (wl/td).toFixed(0):"—"}</td><td></td><td></td>
       <td>${td? (wf/td).toFixed(1):"—"}</td><td>${bf? bf.toFixed(0):"—"}</td><td></td></tr>`;
+    renderSotf(so, d.step);
   }catch(e){}
 }
 setInterval(tick, 1500); tick();

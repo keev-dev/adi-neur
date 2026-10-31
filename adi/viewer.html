@@ -84,6 +84,18 @@
   }
   .seatbar button{padding:3px 8px}
   .seatbar .meta{color:var(--dim); font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .sotfbar{
+    flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:3px 10px;
+    border-top:1px solid var(--line); background:#080b10; color:var(--dim);
+    font-size:10px; white-space:nowrap; overflow:hidden;
+  }
+  .sotfbar .tag{
+    color:var(--dim); border:1px solid var(--line); border-radius:4px;
+    padding:1px 6px; letter-spacing:.08em; text-transform:uppercase;
+  }
+  .sotfbar .tag.on{color:#06080c; background:var(--amber); border-color:var(--amber); font-weight:700}
+  .sotfbar b{color:var(--text); font-weight:600}
+  .sotfbar #sotfbest{color:var(--faint); overflow:hidden; text-overflow:ellipsis}
   .right{display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:10px; min-height:0}
   .card{
     display:flex; flex-direction:column; min-height:0; min-width:0;
@@ -163,6 +175,7 @@
   <span class="phase" id="phase">lean</span>
   <span class="phase" id="foodnow">food 0.6%</span>
   <span class="spacer"></span>
+  <button id="sotf">sotf off</button>
   <button id="brain">brain off</button>
   <button id="auto">auto</button>
 </div>
@@ -177,6 +190,11 @@
       <span><s style="background:var(--red)"></s>low energy</span>
     </div>
     <div class="foot">prakriti · the room</div>
+    <div class="sotfbar" id="sotfbar">
+      <span class="tag" id="sotftag">sotf</span>
+      <span id="sotfnext">waiting</span>
+      <span id="sotfbest"></span>
+    </div>
     <div class="seatbar">
       <button id="prev">&#9664;</button>
       <select id="seat"></select>
@@ -210,6 +228,7 @@
   const $ = id => document.getElementById(id);
   const ACTIONS = ["forward","left","right","eat"];
   let state = null;
+  let sotf = null;
   let dirty = true;
   let brainOn = false;
   let lastDraw = 0;
@@ -236,6 +255,12 @@
   }
   connect();
 
+  async function pollSotf(){
+    try{ sotf = await (await fetch("/sotf")).json(); }catch(_){}
+    setTimeout(pollSotf, 5000);
+  }
+  pollSotf();
+
   function send(o){ if(ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
 
   function updatePulses(roster){
@@ -258,6 +283,7 @@
   $("density").onchange = () => send({cmd:"food_density", value: parseFloat($("density").value)});
   $("cycle").onclick = () => send({cmd:"cycle", value: !(state && state.cycle_on)});
   $("auto").onclick = () => send({cmd:"focus", mode:"auto"});
+  $("sotf").onclick = () => send({cmd:"sotf", value: !(state && state.sotf_enabled), interval: 6000});
   $("brain").onclick = () => {
     brainOn = !brainOn;
     document.querySelector("main").classList.toggle("brain-off", !brainOn);
@@ -324,7 +350,7 @@
       ["deaths", s.deaths],
       ["best eat", s.best_eaten.toFixed(0)],
       ["best life", s.best_life.toLocaleString()],
-      ["sotf", state.sotf_session],
+      ["sotf", state.sotf_enabled ? state.sotf_session : "off"],
     ];
     $("stats").innerHTML = bits.map(([k,v]) => `<span><i>${k}</i><b>${v}</b></span>`).join("");
     document.querySelectorAll("[data-speed]").forEach(b => {
@@ -356,6 +382,8 @@
     $("foodnow").textContent = `food ${(state.food_density*100).toFixed(1)}%`;
     $("brain").textContent = brainOn ? "brain on" : "brain off";
     $("brain").classList.toggle("on", brainOn);
+    $("sotf").textContent = state.sotf_enabled ? "sotf on" : "sotf off";
+    $("sotf").classList.toggle("on", !!state.sotf_enabled);
     $("auto").classList.toggle("on", state.focus_mode === "auto");
 
     const den = $("density");
@@ -395,6 +423,34 @@
         `${a.name} · gen ${a.gen} · ${a.energy.toFixed(1)} energy · ${a.eaten} eaten · cap ${(a.cap || 0).toFixed(3)}`;
     } else {
       $("seatmeta").textContent = "empty seat";
+    }
+  }
+
+  // ---------------------------------------------------------------- sotf
+  function drawSotf(){
+    if(!state) return;
+    const tag = $("sotftag");
+    const on = !!(sotf && sotf.enabled);
+    tag.textContent = on ? "sotf on" : "sotf off";
+    tag.classList.toggle("on", on);
+    if(!sotf){
+      $("sotfnext").textContent = "waiting for sotf stats";
+      $("sotfbest").textContent = "";
+      return;
+    }
+    const left = sotf.next_step != null ? Math.max(0, sotf.next_step - state.step) : null;
+    if(on && left != null){
+      $("sotfnext").innerHTML = `next session <b>${sotf.session + 1}</b> in <b>${left.toLocaleString()}</b> steps`;
+    } else {
+      $("sotfnext").innerHTML = `last session <b>${sotf.last_session || "—"}</b>`;
+    }
+    const top = (sotf.top || []).slice(0, 3);
+    if(top.length){
+      const pre = sotf.last_pre_reset ? " (pre-reset)" : "";
+      $("sotfbest").innerHTML = `last ${sotf.last_session}${pre}: ` +
+        top.map(r => `${r.name} <b>${r.score.toFixed(1)}</b>`).join(" · ");
+    } else {
+      $("sotfbest").textContent = "no sessions yet";
     }
   }
 
@@ -599,6 +655,7 @@
       drawHeader();
       drawToolbar();
       drawSeatbar();
+      drawSotf();
       drawWorld();
       if(brainOn){
         drawUnits();

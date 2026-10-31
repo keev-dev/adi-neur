@@ -1,5 +1,6 @@
 """The living loop, the focused line, and the snapshot the browser sees."""
 
+import csv
 import json
 import math
 import os
@@ -337,8 +338,13 @@ class Simulation:
                 self.pop.sotf_enabled = on
                 if msg.get("interval") is not None:
                     self.pop.sotf_interval = max(0, int(msg["interval"]))
-                if on and self.pop.sotf_last == 0:
-                    self.pop.sotf_last = self.pop.step_i
+                if on:
+                    interval = max(0, int(self.pop.sotf_interval))
+                    if msg.get("delay") is not None and interval > 0:
+                        delay = max(0, min(int(msg["delay"]), interval))
+                        self.pop.sotf_last = self.pop.step_i - (interval - delay)
+                    else:
+                        self.pop.sotf_last = self.pop.step_i
             elif cmd == "energy_cap":
                 v = float(msg.get("value", 100.0))
                 self.pop.base_cap = v
@@ -359,6 +365,97 @@ class Simulation:
                         self.trail.clear()
                         self.map_pts.clear()
                         self.err_hist.clear()
+
+    # ------------------------------------------------------------------- sotf
+    @staticmethod
+    def _sotf_row(raw: dict) -> dict:
+        row = dict(raw)
+        for key in ("session", "step", "room", "rank", "births",
+                    "parent_room", "parent_id", "child_id"):
+            try:
+                row[key] = int(raw.get(key, 0))
+            except (TypeError, ValueError):
+                row[key] = 0
+        for key in ("score", "food_rate", "lineage_rate"):
+            try:
+                row[key] = float(raw.get(key, 0.0))
+            except (TypeError, ValueError):
+                row[key] = 0.0
+        return row
+
+    def sotf_stats(self) -> dict:
+        """The SOTF panel: schedule, last session rows, and live contenders."""
+        with self.lock:
+            pop = self.pop
+            rows: list[dict] = []
+            path = self.log.root / "sotf.csv"
+            if path.exists():
+                try:
+                    with open(path, newline="", encoding="utf-8") as f:
+                        rows = [self._sotf_row(r) for r in csv.DictReader(f)]
+                except Exception:
+                    rows = []
+
+            last_session = max((r["session"] for r in rows), default=0)
+            last = [r for r in rows if r["session"] == last_session]
+            last.sort(key=lambda r: r["rank"])
+            top = sorted(last, key=lambda r: r["score"], reverse=True)[:8]
+            last_step = last[0]["step"] if last else None
+            counts = {
+                "top": sum(1 for r in last if r["group_before"] == "top"),
+                "near": sum(1 for r in last if r["group_before"] == "near"),
+                "weak": sum(1 for r in last if r["group_before"] == "weak"),
+                "keep": sum(1 for r in last if r["action"] == "keep"),
+                "refill": sum(1 for r in last if r["action"] == "refill"),
+            }
+            best = max(last, key=lambda r: r["score"], default=None)
+            best_food = max(last, key=lambda r: r["food_rate"], default=None)
+            best_births = max(last, key=lambda r: r["births"], default=None)
+
+            current = []
+            for slot in pop.alive.nonzero().flatten().tolist():
+                slot = int(slot)
+                st = pop.seat_stats[slot]
+                age = max(1, int(pop.age[slot]))
+                current.append({
+                    "room": slot,
+                    "name": NAMES[slot] if slot < len(NAMES) else f"seat-{slot}",
+                    "score": round(float(pop._sotf_score(slot)), 3),
+                    "food_rate": round(float(pop.eaten[slot]) / age * 1000.0, 3),
+                    "lineage_rate": round(st["total_eaten"] / max(1, st["total_life"]) * 1000.0, 3),
+                    "births": int(st["births"]),
+                    "age": int(pop.age[slot]),
+                })
+            current.sort(key=lambda r: r["score"], reverse=True)
+            for i, r in enumerate(current):
+                r["rank"] = i + 1
+
+            interval = int(pop.sotf_interval)
+            next_step = None
+            if pop.sotf_enabled and interval > 0:
+                next_step = int(pop.sotf_last) + interval
+            return {
+                "enabled": bool(pop.sotf_enabled),
+                "session": int(pop.sotf_session),
+                "interval": interval,
+                "next_step": next_step,
+                "steps_to_next": (max(0, next_step - pop.step_i)
+                                  if next_step is not None else None),
+                "epoch_step": int(pop.epoch_step),
+                "phase": pop.cycle_label(),
+                "cycle_phase": round(float(pop.cycle_phase), 1),
+                "last_session": int(last_session),
+                "last_step": last_step,
+                "last_pre_reset": bool(last_step is not None
+                                       and last_step < pop.epoch_step),
+                "rows": last,
+                "top": top,
+                "current": current[:8],
+                "best": best,
+                "best_food": best_food,
+                "best_births": best_births,
+                "counts": counts,
+            }
 
     # --------------------------------------------------------------- snapshot
     def snapshot(self) -> dict:

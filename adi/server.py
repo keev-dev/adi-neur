@@ -25,6 +25,7 @@ class Command(BaseModel):
     period: int | None = None
     phase: float | None = None
     interval: int | None = None
+    delay: int | None = None
 
 
 def create_app(sim):
@@ -50,6 +51,10 @@ def create_app(sim):
     @app.get("/state")
     def state():
         return JSONResponse(sim.snapshot())
+
+    @app.get("/sotf")
+    def sotf():
+        return JSONResponse(sim.sotf_stats())
 
     @app.post("/cmd")
     def cmd(c: Command):
