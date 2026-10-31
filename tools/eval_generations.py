@@ -9,6 +9,7 @@ Usage:
 
 import argparse
 import csv
+import dataclasses
 import sys
 from pathlib import Path
 
@@ -88,6 +89,7 @@ def main():
     ap.add_argument("--steps", type=int, default=1500)
     ap.add_argument("--seeds", type=int, default=5)
     ap.add_argument("--every", type=int, default=5)
+    ap.add_argument("--density", type=float, default=None)
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
@@ -103,18 +105,22 @@ def main():
         return
     files = files[::max(1, args.every)]
 
-    cfg = Config()
+    base_cfg = Config()
     torch.set_num_threads(1)
     rows = []
     print(f"{'gen':>5} {'n':>3} {'eaten':>7} {'steps':>7} {'cover':>7} {'path':>8}")
     for f in files:
         d = torch.load(f, map_location="cpu", weights_only=False)
         gen = int(d.get("meta", {}).get("gen", -1))
+        density = (args.density if args.density is not None
+                   else float(d.get("meta", {}).get("density", base_cfg.fertility)))
+        cfg = dataclasses.replace(base_cfg, fertility=density)
         res = [evaluate(d, cfg, s, args.steps) for s in range(args.seeds)]
         n = len(res)
         row = {
             "gen": gen,
             "n": n,
+            "density": density,
             "eaten": sum(r["eaten"] for r in res) / n,
             "steps": sum(r["steps"] for r in res) / n,
             "coverage": sum(r["coverage"] for r in res) / n,

@@ -21,7 +21,7 @@ class Fields:
         self.food = torch.zeros(n, self.G, self.G, dtype=torch.float32)
 
     # ------------------------------------------------------------------ make
-    def new(self, slot: int, rng: np.random.Generator) -> None:
+    def new(self, slot: int, rng: np.random.Generator, density: float | None = None) -> None:
         G = self.G
         walls = np.zeros((G, G), dtype=bool)
         walls[0, :] = walls[-1, :] = True
@@ -33,7 +33,8 @@ class Fields:
             h = int(rng.integers(1, 4))
             walls[y0:y0 + h, x0:x0 + w] = True
 
-        fert = rng.random((G, G)) < self.cfg.fertility
+        d = self.cfg.fertility if density is None else max(0.0, min(0.5, float(density)))
+        fert = rng.random((G, G)) < d
         fert[walls] = False
         food = fert * rng.uniform(0.4, 1.0, (G, G))
 

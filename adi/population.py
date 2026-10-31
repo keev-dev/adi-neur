@@ -29,6 +29,7 @@ class Population:
         self.birth_threshold = 15.0
         self.min_replace_age = 200
         self.max_age = 0                  # 0 = off
+        self.food_density = cfg.fertility
         self.visited = torch.zeros(self.N, cfg.grid, cfg.grid, dtype=torch.bool)
         self.path = torch.zeros(self.N)
         self.obs_prev = torch.zeros(self.N, cfg.obs_dim)
@@ -101,7 +102,7 @@ class Population:
         self.gen[slot] = gen
         self.age[slot] = 0
         self.energy[slot] = cfg.start_energy if parent_slot is None else cfg.child_energy
-        self.fields.new(slot, self.rng)
+        self.fields.new(slot, self.rng, self.food_density)
         self.x[slot], self.y[slot], self.heading[slot] = self.fields.random_pos(slot, self.rng)
         self.h[slot].zero_()
         self.prev[slot] = 0
@@ -181,6 +182,7 @@ class Population:
                 "gen": int(self.gen[slot]),
                 "seat": slot,
                 "step": self.step_i,
+                "density": self.food_density,
             }
             name = f"gen_{int(self.gen[slot]):04d}_id{int(self.ids[slot])}.pt"
             torch.save(payload, d / name)
@@ -200,6 +202,39 @@ class Population:
         for s in free[: self.cfg.init_pop]:
             self.spawn(s, None)
         self.reseeds += 1
+
+    def set_food_density(self, target: float) -> None:
+        """Change the fertile fraction of every room. Food on removed cells is lost."""
+        target = max(0.0, min(0.5, float(target)))
+        with torch.no_grad():
+            for slot in range(self.N):
+                walls = self.fields.walls[slot].numpy()
+                fert = self.fields.fertility[slot].numpy()
+                food = self.fields.food[slot].numpy()
+                free = ~walls
+                n_free = int(free.sum())
+                if n_free == 0:
+                    continue
+                target_n = int(round(target * n_free))
+                fertile = (fert > 0.5) & free
+                idx = np.argwhere(fertile)
+                if len(idx) > target_n:
+                    drop = self.rng.choice(len(idx), size=len(idx) - target_n, replace=False)
+                    for j in drop:
+                        y, x = idx[j]
+                        fert[y, x] = 0.0
+                        food[y, x] = 0.0
+                elif len(idx) < target_n:
+                    empty = np.argwhere((~fertile) & free)
+                    add = self.rng.choice(len(empty), size=min(target_n - len(idx), len(empty)),
+                                          replace=False)
+                    for j in add:
+                        y, x = empty[j]
+                        fert[y, x] = 1.0
+                        food[y, x] = float(self.rng.uniform(0.3, 0.8))
+                self.fields.fertility[slot] = torch.from_numpy(fert.astype(np.float32))
+                self.fields.food[slot] = torch.from_numpy(food.astype(np.float32))
+        self.food_density = target
 
     # ------------------------------------------------------------------ step
     def step(self) -> None:
@@ -372,6 +407,7 @@ class Population:
                 "birth_threshold": self.birth_threshold,
                 "min_replace_age": self.min_replace_age,
                 "max_age": self.max_age,
+                "food_density": self.food_density,
                 "max_gen_saved": self.max_gen_saved,
                 "seat_stats": [dict(s) for s in self.seat_stats],
             }
@@ -405,6 +441,7 @@ class Population:
         self.birth_threshold = float(d.get("birth_threshold", 15.0))
         self.min_replace_age = int(d.get("min_replace_age", 200))
         self.max_age = int(d.get("max_age", 0))
+        self.food_density = float(d.get("food_density", self.cfg.fertility))
         self.max_gen_saved = int(d.get("max_gen_saved", 0))
         if "seat_stats" in d:
             for i, s in enumerate(d["seat_stats"][: self.N]):

@@ -121,6 +121,13 @@
       <option value="8000">age 8k</option>
       <option value="12000">age 12k</option>
     </select>
+    <select id="density" title="food density">
+      <option value="0.05">food 5%</option>
+      <option value="0.04">food 4%</option>
+      <option value="0.03">food 3%</option>
+      <option value="0.02">food 2%</option>
+      <option value="0.01">food 1%</option>
+    </select>
     <button id="auto">auto</button>
     <button id="pause">pause</button>
   </div>
@@ -192,6 +199,7 @@
   $("pause").onclick = () => send({cmd:"pause"});
   $("birthmode").onchange = () => send({cmd:"birth_mode", mode: $("birthmode").value});
   $("maxage").onchange = () => send({cmd:"max_age", value: parseFloat($("maxage").value)});
+  $("density").onchange = () => send({cmd:"food_density", value: parseFloat($("density").value)});
   $("auto").onclick = () => send({cmd:"focus", mode:"auto"});
 
   function updatePulses(roster){
@@ -257,6 +265,9 @@
     const ma = $("maxage");
     const mv = String(state.max_age || 0);
     if (ma && [...ma.options].some(o => o.value === mv)) ma.value = mv;
+    const fd = $("density");
+    const fv = String(state.food_density || 0.05);
+    if (fd && [...fd.options].some(o => o.value === fv)) fd.value = fv;
     $("auto").classList.toggle("on", state.focus_mode === "auto");
 
     if(a){

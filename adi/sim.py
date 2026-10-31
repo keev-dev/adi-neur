@@ -312,6 +312,8 @@ class Simulation:
                     self.pop.competitive_birth = mode != "off"
             elif cmd == "max_age":
                 self.pop.max_age = max(0, int(msg.get("value", 0)))
+            elif cmd == "food_density":
+                self.pop.set_food_density(float(msg.get("value", self.cfg.fertility)))
             elif cmd == "focus":
                 if msg.get("mode") == "auto":
                     self.focus_mode = "auto"
@@ -339,6 +341,7 @@ class Simulation:
             self.latest["birth_mode"] = self.pop.birth_mode
             self.latest["churn"] = self.pop.birth_mode != "off"
             self.latest["max_age"] = self.pop.max_age
+            self.latest["food_density"] = round(float(self.pop.food_density), 4)
         return self.latest
 
     def _build_snapshot(self) -> dict:
@@ -403,6 +406,7 @@ class Simulation:
                 "churn": self.pop.birth_mode != "off",
                 "birth_mode": self.pop.birth_mode,
                 "max_age": self.pop.max_age,
+                "food_density": round(float(self.pop.food_density), 4),
                 "stats": stats,
                 "roster": roster,
                 "seat_stats": seat_stats,
