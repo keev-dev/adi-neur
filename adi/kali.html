@@ -69,7 +69,7 @@ async function tick(){
   try{
     const d = await (await fetch('/state')).json();
     const s = d.stats;
-    $('meta').innerHTML = `step <b>${d.step.toLocaleString()}</b> · pop <b>${s.pop}</b> · gen <b>${s.max_gen}</b> · best <b>${s.best_eaten.toFixed(0)}</b>`;
+    $('meta').innerHTML = `step <b>${d.step.toLocaleString()}</b> · pop <b>${s.pop}</b> · gen <b>${s.max_gen}</b> · best eat <b>${s.best_eaten.toFixed(0)}</b> · best life <b>${s.best_life.toLocaleString()}</b>`;
     const showAll = $('all').checked;
     const key = $('sort').value;
     const rows = d.roster.filter(r => showAll || r.alive).slice().sort((a,b) => (b[key]||0) - (a[key]||0));

@@ -75,6 +75,8 @@ class Population:
         self.deaths = 0
         self.reseeds = 0
         self.best_eaten = 0.0
+        self.best_life = 0
+        self.epoch_step = 0
         self.lifetimes = deque(maxlen=300)
         self.accum = 0
         self.accum_steps = 4
@@ -157,18 +159,22 @@ class Population:
         eaten = float(self.eaten[slot])
         self.log.event(self.step_i, "death", aid, int(self.parent[slot]), int(self.gen[slot]),
                        age, float(self.energy[slot]), eaten)
-        self.lifetimes.append(age)
-        st = self.seat_stats[slot]
-        st["deaths"] += 1
-        st["total_life"] += age
-        st["max_life"] = max(st["max_life"], age)
-        st["total_eaten"] += eaten
-        st["best_eaten"] = max(st["best_eaten"], eaten)
+        birth = self.step_i - age
+        if birth >= self.epoch_step:
+            self.lifetimes.append(age)
+            st = self.seat_stats[slot]
+            st["deaths"] += 1
+            st["total_life"] += age
+            st["max_life"] = max(st["max_life"], age)
+            st["total_eaten"] += eaten
+            st["best_eaten"] = max(st["best_eaten"], eaten)
+            if eaten > self.best_eaten:
+                self.best_eaten = eaten
+                self._save_hof(slot)
+            if age > self.best_life:
+                self.best_life = age
         self.log.seat_event(self.step_i, "death", slot, aid, int(self.parent[slot]),
                             int(self.gen[slot]), age, float(self.energy[slot]), eaten)
-        if eaten > self.best_eaten:
-            self.best_eaten = eaten
-            self._save_hof(slot)
         self.alive[slot] = False
         self.ids[slot] = -1
         self.energy[slot] = 0.0
@@ -287,6 +293,14 @@ class Population:
         if self.cycle_on:
             self.set_food_density(self.cycle_target())
 
+    def reset_records(self) -> None:
+        """Start clean life and food records from now. Older bodies do not count."""
+        self.epoch_step = self.step_i
+        self.best_eaten = 0.0
+        self.best_life = 0
+        self.lifetimes.clear()
+        self.seat_stats = [self._fresh_seat_stats() for _ in range(self.N)]
+
     # ------------------------------------------------------------------ step
     def step(self) -> None:
         cfg = self.cfg
@@ -304,7 +318,6 @@ class Population:
 
         # 2. think
         h2, pred, logits = self.brains.forward(inp, self.h)
-        logits = logits + self.action_score * 0.5
         logits = torch.clamp(logits, -20.0, 20.0)
         probs = torch.softmax(logits, dim=1)
         probs = torch.nan_to_num(probs, nan=1.0 / cfg.act_dim)
@@ -469,6 +482,8 @@ class Population:
                 "deaths": self.deaths,
                 "reseeds": self.reseeds,
                 "best_eaten": self.best_eaten,
+                "best_life": self.best_life,
+                "epoch_step": self.epoch_step,
                 "lifetimes": list(self.lifetimes),
                 "accum": self.accum,
                 "rng": self.rng.bit_generator.state,
@@ -514,6 +529,8 @@ class Population:
         self.deaths = int(d["deaths"])
         self.reseeds = int(d["reseeds"])
         self.best_eaten = float(d["best_eaten"])
+        self.best_life = int(d.get("best_life", 0))
+        self.epoch_step = int(d.get("epoch_step", 0))
         self.lifetimes = deque(d.get("lifetimes", []), maxlen=300)
         self.accum = int(d.get("accum", 0))
         self.rng.bit_generator.state = d["rng"]
@@ -556,13 +573,22 @@ class Population:
     def stats(self) -> dict:
         alive = self.alive
         n = int(alive.sum())
-        best_live = float(self.eaten[alive].max()) if n else 0.0
+        if n:
+            birth = self.step_i - self.age[alive]
+            mask = birth >= self.epoch_step
+            best_live = float(self.eaten[alive][mask].max()) if bool(mask.any()) else 0.0
+            best_life_live = int(self.age[alive][mask].max()) if bool(mask.any()) else 0
+        else:
+            best_live = 0.0
+            best_life_live = 0
         return {
             "pop": n,
             "births": self.births,
             "deaths": self.deaths,
             "reseeds": self.reseeds,
             "best_eaten": max(self.best_eaten, best_live),
+            "best_life": max(self.best_life, best_life_live),
+            "epoch_step": self.epoch_step,
             "mean_gen": float(self.gen[alive].float().mean()) if n else 0.0,
             "mean_life": float(np.mean(self.lifetimes)) if self.lifetimes else 0.0,
             "max_gen": int(self.gen[alive].max()) if n else 0,

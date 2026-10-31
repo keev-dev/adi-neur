@@ -322,7 +322,8 @@
       ["step", state.step.toLocaleString()],
       ["births", s.births],
       ["deaths", s.deaths],
-      ["best", s.best_eaten.toFixed(0)],
+      ["best eat", s.best_eaten.toFixed(0)],
+      ["best life", s.best_life.toLocaleString()],
     ];
     $("stats").innerHTML = bits.map(([k,v]) => `<span><i>${k}</i><b>${v}</b></span>`).join("");
     document.querySelectorAll("[data-speed]").forEach(b => {

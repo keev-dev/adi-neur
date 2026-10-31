@@ -328,6 +328,8 @@ class Simulation:
                                    msg.get("period"), msg.get("phase"))
             elif cmd == "min_pop":
                 self.pop.min_pop = max(1, int(msg.get("value", 8)))
+            elif cmd == "reset_records":
+                self.pop.reset_records()
             elif cmd == "energy_cap":
                 v = float(msg.get("value", 100.0))
                 self.pop.base_cap = v
