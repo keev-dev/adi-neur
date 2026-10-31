@@ -205,7 +205,8 @@
   // ---------------------------------------------------------------- socket
   let ws = null;
   function connect(){
-    ws = new WebSocket(`ws://${location.host}/ws`);
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${proto}://${location.host}/ws`);
     ws.onmessage = e => {
       try {
         state = JSON.parse(e.data);
