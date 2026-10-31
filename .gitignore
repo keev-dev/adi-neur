@@ -1,0 +1,13 @@
+data/
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+*.pt
+*.png
+.DS_Store
+.idea/
+.vscode/
+_ckpt*/
+_smoke*/
+_rep*/

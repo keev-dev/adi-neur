@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Adi</title>
+<style>
+  :root{
+    --bg:#06080c; --panel:#0b0f15; --panel2:#0e131b; --line:#182130;
+    --text:#c6d2e2; --dim:#66758a; --faint:#2a3648;
+    --amber:#ffb454; --green:#3ddc97; --blue:#5aa9ff; --red:#ff5f6d;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text); overflow:hidden;
+    font:12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    -webkit-font-smoothing:antialiased;
+  }
+  header{
+    height:46px; display:flex; align-items:center; gap:18px;
+    padding:0 16px; border-bottom:1px solid var(--line);
+    background:linear-gradient(180deg,#0a0e14,#070a0f);
+  }
+  .brand{font-weight:700; letter-spacing:.22em; font-size:12px; color:var(--amber)}
+  .brand span{color:var(--dim); font-weight:400; letter-spacing:.1em; margin-left:4px}
+  .stats{display:flex; gap:14px; color:var(--dim); flex:1; overflow:hidden; white-space:nowrap}
+  .stats b{color:var(--text); font-weight:600}
+  .stats i{font-style:normal; color:var(--faint); margin-right:4px}
+  .controls{display:flex; gap:4px; align-items:center}
+  .controls button{
+    background:var(--panel2); color:var(--dim); border:1px solid var(--line);
+    border-radius:5px; padding:5px 9px; font:inherit; font-size:11px; cursor:pointer;
+  }
+  .controls button:hover{color:var(--text); border-color:#243146}
+  .controls button.on{color:#06080c; background:var(--amber); border-color:var(--amber); font-weight:700}
+  main{
+    display:grid; grid-template-columns:1.28fr 1fr; gap:10px;
+    padding:10px; height:calc(100vh - 46px);
+  }
+  .pane{
+    position:relative; background:radial-gradient(120% 100% at 50% 0%,#0c1119,#06080c 70%);
+    border:1px solid var(--line); border-radius:9px; overflow:hidden; min-height:0;
+    display:flex; flex-direction:column;
+  }
+  #world{flex:1; min-height:0; width:100%; display:block}
+  .hud{
+    position:absolute; left:12px; top:10px; display:flex; flex-direction:column; gap:2px;
+    pointer-events:none; text-shadow:0 1px 6px #000;
+  }
+  .hud .k{color:#5c6b80; font-size:10px; letter-spacing:.12em; text-transform:uppercase}
+  .hud .v{color:var(--text); font-size:15px; letter-spacing:.04em}
+  .hud .v em{font-style:normal; color:var(--dim); font-size:11px; margin-left:8px}
+  .legend{
+    position:absolute; left:12px; bottom:68px; display:flex; gap:14px;
+    color:var(--dim); font-size:10px; pointer-events:none;
+  }
+  .legend s{text-decoration:none; display:inline-block; width:7px; height:7px; border-radius:2px; margin-right:5px; vertical-align:1px}
+  .foot{
+    position:absolute; right:12px; bottom:68px; color:var(--faint); font-size:10px;
+    letter-spacing:.05em;
+  }
+  .roster{
+    display:grid; grid-template-columns:repeat(16,1fr); gap:2px;
+    padding:6px 8px 7px; border-top:1px solid var(--line);
+    background:linear-gradient(180deg,#080b10,#06080c); flex:0 0 auto;
+  }
+  .chip{
+    display:flex; flex-direction:column; gap:2px; padding:3px 4px 4px;
+    border:1px solid transparent; border-radius:4px; cursor:pointer;
+    background:rgba(20,27,38,.45); min-width:0;
+  }
+  .chip:hover{background:rgba(30,40,54,.7)}
+  .chip .nm{font-size:8px; line-height:1.1; letter-spacing:.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .chip .bar{height:3px; background:#0a0e14; border-radius:2px; overflow:hidden}
+  .chip .bar i{display:block; height:100%; width:0%; transition:width .25s linear}
+  .chip.on{border-color:var(--amber); box-shadow:0 0 0 1px rgba(255,180,84,.25) inset}
+  .chip.dead{opacity:.35}
+  @keyframes pulseGlow{0%{box-shadow:0 0 0 0 rgba(255,255,255,.55)}100%{box-shadow:0 0 0 7px rgba(255,255,255,0)}}
+  .chip.pulse{animation:pulseGlow .8s ease-out}
+  .right{display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:10px; min-height:0}
+  .card{
+    display:flex; flex-direction:column; min-height:0; min-width:0;
+    background:var(--panel); border:1px solid var(--line); border-radius:9px;
+    padding:9px 10px 8px;
+  }
+  .card h3{
+    margin:0 0 6px; font-size:9px; letter-spacing:.15em; text-transform:uppercase;
+    color:var(--dim); font-weight:600; display:flex; justify-content:space-between;
+  }
+  .card h3 span{color:var(--faint); letter-spacing:.05em; text-transform:none; font-weight:400}
+  .card canvas{flex:1; min-height:0; width:100%; display:block}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">ADI <span>v0</span></div>
+  <div class="stats" id="stats"></div>
+  <div class="controls">
+    <button data-speed="1">1x</button>
+    <button data-speed="2">2x</button>
+    <button data-speed="4">4x</button>
+    <button data-speed="0">max</button>
+    <button id="churn">churn</button>
+    <button id="auto">auto</button>
+    <button id="pause">pause</button>
+  </div>
+</header>
+
+<main>
+  <section class="pane">
+    <canvas id="world"></canvas>
+    <div class="hud" id="hud"></div>
+    <div class="legend">
+      <span><s style="background:var(--green)"></s>food</span>
+      <span><s id="legadi" style="background:var(--amber)"></s>adi</span>
+      <span><s style="background:var(--red)"></s>low energy</span>
+    </div>
+    <div class="foot">prakriti · the room</div>
+    <div class="roster" id="roster"></div>
+  </section>
+
+  <section class="right">
+    <div class="card">
+      <h3>recurrent state <span id="uinfo">128 units</span></h3>
+      <canvas id="units"></canvas>
+    </div>
+    <div class="card">
+      <h3>policy <span id="pinfo"></span></h3>
+      <canvas id="policy"></canvas>
+    </div>
+    <div class="card">
+      <h3>attention <span>grad × input</span></h3>
+      <canvas id="sal"></canvas>
+    </div>
+    <div class="card">
+      <h3>state map <span>last 900 steps</span></h3>
+      <canvas id="map"></canvas>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const ACTIONS = ["forward","left","right","eat"];
+  let state = null;
+  let rosterBuilt = false;
+  let lastHeader = 0, lastRoster = 0;
+  const prevEaten = new Map();
+  const pulseUntil = new Map();
+
+  // ---------------------------------------------------------------- socket
+  let ws = null;
+  function connect(){
+    ws = new WebSocket(`ws://${location.host}/ws`);
+    ws.onmessage = e => {
+      try {
+        state = JSON.parse(e.data);
+        updatePulses(state.roster);
+      } catch(_){}
+    };
+    ws.onclose = () => { state = null; setTimeout(connect, 800); };
+    ws.onerror = () => { try { ws.close(); } catch(_){} };
+  }
+  connect();
+
+  function send(o){ if(ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+  document.querySelectorAll("[data-speed]").forEach(b => {
+    b.onclick = () => send({cmd:"speed", value: parseFloat(b.dataset.speed)});
+  });
+  $("pause").onclick = () => send({cmd:"pause"});
+  $("churn").onclick = () => send({cmd:"churn", value: !(state && state.churn)});
+  $("auto").onclick = () => send({cmd:"focus", mode:"auto"});
+
+  function updatePulses(roster){
+    if(!roster) return;
+    const now = performance.now();
+    for(const r of roster){
+      const prev = prevEaten.get(r.slot);
+      if(prev !== undefined && r.eaten > prev) pulseUntil.set(r.slot, now + 900);
+      prevEaten.set(r.slot, r.eaten);
+    }
+  }
+
+  // ---------------------------------------------------------------- canvas
+  function fit(c){
+    const dpr = window.devicePixelRatio || 1;
+    const r = c.getBoundingClientRect();
+    const W = Math.max(1, Math.floor(r.width)), H = Math.max(1, Math.floor(r.height));
+    if (c.width !== Math.floor(W*dpr) || c.height !== Math.floor(H*dpr)){
+      c.width = Math.floor(W*dpr); c.height = Math.floor(H*dpr);
+    }
+    const ctx = c.getContext("2d");
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,W,H);
+    return {ctx,W,H};
+  }
+  function roundRect(ctx,x,y,w,h,r){
+    r = Math.min(r, w/2, h/2);
+    ctx.beginPath();
+    ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+    ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  }
+  function text(ctx,s,x,y,color,size=10,align="left"){
+    ctx.fillStyle=color; ctx.font=`${size}px ui-monospace,Menlo,monospace`;
+    ctx.textAlign=align; ctx.textBaseline="middle"; ctx.fillText(s,x,y);
+  }
+
+  // ---------------------------------------------------------------- header
+  function drawHeader(){
+    if(!state) return;
+    const now = performance.now();
+    if(now - lastHeader < 100) return;
+    lastHeader = now;
+
+    const s = state.stats, a = state.agent;
+    const bits = [
+      ["pop", s.pop],
+      ["gen", s.max_gen],
+      ["step", state.step.toLocaleString()],
+      ["births", s.births],
+      ["deaths", s.deaths],
+      ["best eaten", s.best_eaten.toFixed(0)],
+      ["mean life", s.mean_life.toFixed(0)],
+    ];
+    $("stats").innerHTML = bits.map(([k,v]) => `<span><i>${k}</i><b>${v}</b></span>`).join("");
+    document.querySelectorAll("[data-speed]").forEach(b => {
+      const v = parseFloat(b.dataset.speed);
+      b.classList.toggle("on", (state.speed === 0 && v === 0) || Math.abs(state.speed - v) < 1e-6);
+    });
+    $("pause").classList.toggle("on", state.paused);
+    $("pause").textContent = state.paused ? "resume" : "pause";
+    $("churn").classList.toggle("on", !!state.churn);
+    $("churn").textContent = state.churn ? "churn on" : "churn off";
+    $("auto").classList.toggle("on", state.focus_mode === "auto");
+
+    if(a){
+      const hue = a.hue || 35;
+      $("hud").innerHTML =
+        `<div class="k" style="color:hsl(${hue} 75% 68%)">${a.name} · seat ${a.slot} · gen ${a.gen}</div>` +
+        `<div class="v">${a.energy.toFixed(1)}<em>energy</em></div>` +
+        `<div class="k">age ${a.age} · eaten ${a.eaten} · ${a.action === 3 ? "eat" : ACTIONS[a.action]}</div>`;
+      $("pinfo").textContent = `err ${a.pred_err.toFixed(4)}`;
+      $("uinfo").textContent = `${state.stats.pop} alive · ${a.units.length} units`;
+      const leg = $("legadi");
+      if(leg) leg.style.background = `hsl(${hue} 80% 60%)`;
+    }
+  }
+
+  // ---------------------------------------------------------------- roster
+  function buildRoster(){
+    const el = $("roster");
+    el.innerHTML = "";
+    for(let i=0;i<32;i++){
+      const d = document.createElement("div");
+      d.className = "chip";
+      d.innerHTML = `<div class="nm"></div><div class="bar"><i></i></div>`;
+      d.onclick = () => send({cmd:"focus", slot:i});
+      el.appendChild(d);
+    }
+    rosterBuilt = true;
+  }
+
+  function drawRoster(){
+    if(!state || !state.roster) return;
+    const now = performance.now();
+    if(now - lastRoster < 90) return;
+    lastRoster = now;
+    if(!rosterBuilt) buildRoster();
+    const el = $("roster");
+    state.roster.forEach((r, i) => {
+      const d = el.children[i];
+      if(!d) return;
+      const nm = d.querySelector(".nm");
+      const bar = d.querySelector(".bar i");
+      const v = r.alive ? r.vitality : 0;
+      const hue = r.hue;
+      const light = 34 + 32 * v;
+      nm.textContent = r.name.length > 8 ? r.name.slice(0, 8) : r.name;
+      nm.style.color = r.alive ? `hsl(${hue} 72% ${light + 16}%)` : "#303b4a";
+      d.style.background = r.alive
+        ? `hsla(${hue}, 55%, ${14 + 12*v}%, ${0.28 + 0.42*v})`
+        : "rgba(18,24,34,.45)";
+      bar.style.width = `${Math.max(0, Math.min(100, r.energy / 1.2))}%`;
+      bar.style.background = `hsl(${hue} 80% ${light}%)`;
+      d.classList.toggle("on", !!r.focused);
+      d.classList.toggle("dead", !r.alive);
+      d.classList.toggle("pulse", (pulseUntil.get(i) || 0) > now);
+      d.title = r.alive
+        ? `${r.name} · seat ${r.slot} · id ${r.id} · gen ${r.gen} · age ${r.age} · energy ${r.energy.toFixed(1)} · eaten ${r.eaten}`
+        : `${r.name} · seat ${r.slot} · empty`;
+    });
+  }
+
+  // ---------------------------------------------------------------- world
+  function drawWorld(){
+    const c = $("world");
+    const {ctx,W,H} = fit(c);
+    if(!state || !state.world || !state.agent){
+      text(ctx, "waiting for a line...", W/2, H/2, "#2a3648", 12, "center");
+      return;
+    }
+    const G = state.world.size, a = state.agent, w = state.world;
+    const PAD = 18;
+    const cell = Math.min((W-2*PAD)/G, (H-2*PAD)/G);
+    const ox = (W - cell*G)/2, oy = (H - cell*G)/2;
+    const hue = a.hue || 35;
+    const vit = a.vitality == null ? 0.5 : a.vitality;
+    const pulse = (pulseUntil.get(a.slot) || 0) > performance.now();
+
+    ctx.fillStyle = "#080b10";
+    ctx.fillRect(ox, oy, cell*G, cell*G);
+
+    ctx.strokeStyle = "rgba(40,55,75,.18)";
+    ctx.lineWidth = 1;
+    for(let i=0;i<=G;i+=8){
+      ctx.beginPath(); ctx.moveTo(ox+i*cell, oy); ctx.lineTo(ox+i*cell, oy+cell*G); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ox, oy+i*cell); ctx.lineTo(ox+cell*G, oy+i*cell); ctx.stroke();
+    }
+
+    ctx.fillStyle = "#141b26";
+    for(const [x,y] of w.walls) ctx.fillRect(ox+x*cell, oy+y*cell, cell+.5, cell+.5);
+    ctx.strokeStyle = "rgba(64,86,116,.28)";
+    ctx.lineWidth = 1;
+    for(const [x,y] of w.walls) ctx.strokeRect(ox+x*cell+.5, oy+y*cell+.5, cell-1, cell-1);
+
+    for(const [x,y,f] of w.food){
+      const px = ox+(x+.5)*cell, py = oy+(y+.5)*cell;
+      const r = Math.max(1.2, cell*(.10+.22*f));
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(61,220,151,${.08+.50*f})`;
+      ctx.arc(px,py,r,0,6.2832); ctx.fill();
+    }
+
+    if(state.trail.length > 1){
+      for(let i=1;i<state.trail.length;i++){
+        const [x0,y0] = state.trail[i-1], [x1,y1] = state.trail[i];
+        ctx.strokeStyle = `hsla(${hue}, 80%, 60%, ${.012+.10*(i/state.trail.length)})`;
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(ox+x0*cell, oy+y0*cell);
+        ctx.lineTo(ox+x1*cell, oy+y1*cell);
+        ctx.stroke();
+      }
+    }
+
+    const px = ox + a.x*cell, py = oy + a.y*cell;
+    for(let i=0;i<8;i++){
+      const ang = a.heading + i*Math.PI/4;
+      const d = (1 - a.whiskers[i]) * w.range;
+      const ex = ox + (a.x + Math.cos(ang)*d)*cell;
+      const ey = oy + (a.y + Math.sin(ang)*d)*cell;
+      const near = a.whiskers[i];
+      ctx.strokeStyle = `hsla(${hue}, 70%, 65%, ${.12+.42*near})`;
+      ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(ex,ey); ctx.stroke();
+    }
+
+    const low = a.energy < 20;
+    const col = low ? "#ff5f6d" : `hsl(${hue} 85% ${45+20*vit}%)`;
+    ctx.save();
+    ctx.translate(px,py);
+    ctx.rotate(a.heading);
+    const s = Math.max(5, cell*.92);
+    ctx.beginPath();
+    ctx.moveTo(s,0); ctx.lineTo(-s*.62,s*.55); ctx.lineTo(-s*.32,0); ctx.lineTo(-s*.62,-s*.55);
+    ctx.closePath();
+    ctx.fillStyle = col; ctx.fill();
+    ctx.shadowColor = col; ctx.shadowBlur = pulse ? 22 : 10; ctx.fill();
+    ctx.restore();
+
+    const frac = Math.max(0, Math.min(1, a.energy/110));
+    ctx.beginPath();
+    ctx.arc(px,py,Math.max(7,cell*1.12),-Math.PI/2,-Math.PI/2+frac*6.2832);
+    ctx.strokeStyle = low ? "rgba(255,95,109,.95)" : `hsla(${hue}, 80%, 65%, .55)`;
+    ctx.lineWidth = 1.6; ctx.stroke();
+
+    text(ctx, a.name, px, py + cell*2.1, `hsla(${hue}, 75%, 72%, .85)`, 9, "center");
+  }
+
+  // ---------------------------------------------------------------- units
+  function drawUnits(){
+    const c = $("units"), {ctx,W,H} = fit(c);
+    if(!state || !state.agent) return;
+    const u = state.agent.units;
+    const cols = 16, rows = Math.ceil(u.length/cols);
+    const gap = 2;
+    const cw = (W - gap*(cols-1))/cols, ch = (H - gap*(rows-1))/rows;
+    for(let i=0;i<u.length;i++){
+      const v = Math.max(-1, Math.min(1, u[i]));
+      const x = (i%cols)*(cw+gap), y = Math.floor(i/cols)*(ch+gap);
+      if(v >= 0) ctx.fillStyle = `rgba(255,180,84,${.055+.945*v})`;
+      else ctx.fillStyle = `rgba(90,169,255,${.055+.945*(-v)})`;
+      roundRect(ctx,x,y,cw,ch,1.5); ctx.fill();
+    }
+  }
+
+  // ---------------------------------------------------------------- policy
+  function drawPolicy(){
+    const c = $("policy"), {ctx,W,H} = fit(c);
+    if(!state || !state.agent) return;
+    const a = state.agent, p = a.probs;
+    const topH = H*0.56, rowH = topH/4;
+    for(let i=0;i<4;i++){
+      const y = i*rowH + 2;
+      text(ctx, ACTIONS[i], 0, y+rowH/2-1, i===a.action?"#c6d2e2":"#4d5b6e", 9);
+      const bx = 54, bw = W-54;
+      ctx.fillStyle = "#0a0e14"; roundRect(ctx,bx,y,bw,rowH-5,3); ctx.fill();
+      const ww = Math.max(1, bw*p[i]);
+      ctx.fillStyle = i===a.action ? "rgba(255,180,84,.92)" : "rgba(90,169,255,.30)";
+      roundRect(ctx,bx,y,ww,rowH-5,3); ctx.fill();
+      text(ctx, p[i].toFixed(2), bx+4, y+rowH/2-1, i===a.action?"#06080c":"#66758a", 8);
+    }
+    const e = state.err_hist;
+    const y0 = topH + 6, hh = H - y0 - 2;
+    ctx.strokeStyle = "rgba(24,33,48,.9)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(0,y0+hh); ctx.lineTo(W,y0+hh); ctx.stroke();
+    if(e.length > 2){
+      const mx = Math.max(1e-6, ...e);
+      ctx.beginPath();
+      for(let i=0;i<e.length;i++){
+        const x = (i/(e.length-1))*W;
+        const y = y0 + hh - (e[i]/mx)*hh;
+        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      }
+      ctx.strokeStyle = "rgba(61,220,151,.75)"; ctx.lineWidth = 1.2; ctx.stroke();
+      text(ctx, "surprise", W-2, y0+6, "#2f3f52", 8, "right");
+    }
+  }
+
+  // ---------------------------------------------------------------- sal
+  function drawSal(){
+    const c = $("sal"), {ctx,W,H} = fit(c);
+    if(!state || !state.agent) return;
+    const labels = ["whisker","food","grad","heading","energy","action"];
+    const v = state.agent.sal;
+    const rowH = H/6;
+    for(let i=0;i<6;i++){
+      const y = i*rowH;
+      text(ctx, labels[i], 0, y+rowH/2, "#4d5b6e", 9);
+      const bx = 58, bw = W-58-30;
+      ctx.fillStyle = "#0a0e14"; roundRect(ctx,bx,y+3,bw,rowH-8,2); ctx.fill();
+      const ww = Math.max(1,bw*v[i]);
+      const g = ctx.createLinearGradient(bx,0,bx+bw,0);
+      g.addColorStop(0,"rgba(90,169,255,.55)"); g.addColorStop(1,"rgba(255,180,84,.90)");
+      ctx.fillStyle = g; roundRect(ctx,bx,y+3,ww,rowH-8,2); ctx.fill();
+      text(ctx, v[i].toFixed(2), W-2, y+rowH/2, "#3a4a5f", 8, "right");
+    }
+  }
+
+  // ---------------------------------------------------------------- map
+  function drawMap(){
+    const c = $("map"), {ctx,W,H} = fit(c);
+    if(!state) return;
+    const pts = state.map || [];
+    const R = 1.35;
+    const px = x => (x + R)/(2*R) * (W-8) + 4;
+    const py = y => H - ((y + R)/(2*R) * (H-8) + 4);
+    ctx.strokeStyle = "rgba(24,33,48,.8)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(px(-R),py(0)); ctx.lineTo(px(R),py(0)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(px(0),py(-R)); ctx.lineTo(px(0),py(R)); ctx.stroke();
+    const colors = ["rgba(120,140,165,.55)","rgba(61,220,151,.85)","rgba(90,169,255,.85)","rgba(255,95,109,.95)"];
+    for(let i=0;i<pts.length;i++){
+      const [x,y,l] = pts[i];
+      const t = i/pts.length;
+      ctx.beginPath();
+      ctx.fillStyle = colors[l] || colors[0];
+      ctx.globalAlpha = 0.12 + 0.65*t;
+      ctx.arc(px(x),py(y), 1.1 + 1.2*t, 0, 6.2832); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if(pts.length){
+      const [x,y] = pts[pts.length-1];
+      ctx.beginPath(); ctx.arc(px(x),py(y),3.2,0,6.2832);
+      ctx.fillStyle="#fff"; ctx.fill();
+      ctx.beginPath(); ctx.arc(px(x),py(y),6,0,6.2832);
+      ctx.strokeStyle="rgba(255,255,255,.35)"; ctx.lineWidth=1; ctx.stroke();
+    }
+    const leg = [["normal","#788ca5"],["food","#3ddc97"],["wall","#5aa9ff"],["low","#ff5f6d"]];
+    leg.forEach(([label,col],i)=>{
+      ctx.beginPath(); ctx.fillStyle=col; ctx.arc(5, H-6-i*10, 2.2, 0, 6.2832); ctx.fill();
+      text(ctx, label, 11, H-6-i*10, "#3a4a5f", 8);
+    });
+  }
+
+  // ---------------------------------------------------------------- loop
+  function frame(){
+    drawHeader();
+    drawWorld();
+    drawUnits();
+    drawPolicy();
+    drawSal();
+    drawMap();
+    drawRoster();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
