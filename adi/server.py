@@ -20,6 +20,10 @@ class Command(BaseModel):
     id: int | None = None
     slot: int | None = None
     mode: str | None = None
+    low: float | None = None
+    high: float | None = None
+    period: int | None = None
+    phase: float | None = None
 
 
 def create_app(sim):

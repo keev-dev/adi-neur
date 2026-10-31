@@ -36,7 +36,7 @@ class Simulation:
         self.focus_slot: int | None = None
         self.focus_mode = "auto"   # auto | manual
         self.trail = deque(maxlen=140)
-        self.map_pts = deque(maxlen=900)
+        self.map_pts = deque(maxlen=360)
         self.err_hist = deque(maxlen=240)
 
         # fixed random projection of the recurrent state. stable across a run.
@@ -313,7 +313,14 @@ class Simulation:
             elif cmd == "max_age":
                 self.pop.max_age = max(0, int(msg.get("value", 0)))
             elif cmd == "food_density":
+                self.pop.cycle_on = False
                 self.pop.set_food_density(float(msg.get("value", self.cfg.fertility)))
+            elif cmd == "cycle":
+                self.pop.set_cycle(bool(msg.get("value", True)),
+                                   msg.get("low"), msg.get("high"),
+                                   msg.get("period"), msg.get("phase"))
+            elif cmd == "min_pop":
+                self.pop.min_pop = max(1, int(msg.get("value", 8)))
             elif cmd == "energy_cap":
                 v = float(msg.get("value", 100.0))
                 self.pop.base_cap = v
@@ -348,6 +355,10 @@ class Simulation:
             self.latest["max_age"] = self.pop.max_age
             self.latest["food_density"] = round(float(self.pop.food_density), 4)
             self.latest["energy_cap"] = round(float(self.pop.base_cap), 4)
+            self.latest["min_pop"] = self.pop.min_pop
+            self.latest["cycle_on"] = self.pop.cycle_on
+            self.latest["cycle_label"] = self.pop.cycle_label()
+            self.latest["cycle_phase"] = round(float(self.pop.cycle_phase), 1)
         return self.latest
 
     def _build_snapshot(self) -> dict:
@@ -415,6 +426,13 @@ class Simulation:
                 "max_age": self.pop.max_age,
                 "food_density": round(float(self.pop.food_density), 4),
                 "energy_cap": round(float(self.pop.base_cap), 4),
+                "min_pop": self.pop.min_pop,
+                "cycle_on": self.pop.cycle_on,
+                "cycle_low": round(float(self.pop.cycle_low), 4),
+                "cycle_high": round(float(self.pop.cycle_high), 4),
+                "cycle_period": self.pop.cycle_period,
+                "cycle_phase": round(float(self.pop.cycle_phase), 1),
+                "cycle_label": self.pop.cycle_label(),
                 "stats": stats,
                 "roster": roster,
                 "seat_stats": seat_stats,

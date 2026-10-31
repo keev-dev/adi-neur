@@ -18,7 +18,7 @@
     -webkit-font-smoothing:antialiased;
   }
   header{
-    height:46px; display:flex; align-items:center; gap:18px;
+    height:44px; display:flex; align-items:center; gap:16px;
     padding:0 16px; border-bottom:1px solid var(--line);
     background:linear-gradient(180deg,#0a0e14,#070a0f);
   }
@@ -31,20 +31,30 @@
   .links a{color:var(--dim); text-decoration:none; font-size:11px; letter-spacing:.04em}
   .links a:hover{color:var(--text)}
   .controls{display:flex; gap:4px; align-items:center}
-  .controls select{
-    background:var(--panel2); color:var(--dim); border:1px solid var(--line);
-    border-radius:5px; padding:5px 6px; font:inherit; font-size:11px; cursor:pointer;
-  }
-  .controls button{
+  button{
     background:var(--panel2); color:var(--dim); border:1px solid var(--line);
     border-radius:5px; padding:5px 9px; font:inherit; font-size:11px; cursor:pointer;
   }
-  .controls button:hover{color:var(--text); border-color:#243146}
-  .controls button.on{color:#06080c; background:var(--amber); border-color:var(--amber); font-weight:700}
+  button:hover{color:var(--text); border-color:#243146}
+  button.on{color:#06080c; background:var(--amber); border-color:var(--amber); font-weight:700}
+  .toolbar{
+    height:36px; display:flex; align-items:center; gap:14px; padding:0 16px;
+    border-bottom:1px solid var(--line); background:#080b10;
+  }
+  .toolbar label{display:flex; align-items:center; gap:5px; color:var(--dim); font-size:10px; letter-spacing:.05em}
+  .toolbar select{
+    background:var(--panel2); color:var(--text); border:1px solid var(--line);
+    border-radius:4px; padding:3px 5px; font:inherit; font-size:11px; cursor:pointer;
+  }
+  .toolbar select:disabled{opacity:.4; cursor:default}
+  .phase{color:var(--dim); font-size:10px; letter-spacing:.08em; text-transform:uppercase}
+  .spacer{flex:1}
   main{
     display:grid; grid-template-columns:1.28fr 1fr; gap:10px;
-    padding:10px; height:calc(100vh - 46px);
+    padding:10px; height:calc(100vh - 80px);
   }
+  main.brain-off{grid-template-columns:1fr}
+  main.brain-off .right{display:none}
   .pane{
     position:relative; background:radial-gradient(120% 100% at 50% 0%,#0c1119,#06080c 70%);
     border:1px solid var(--line); border-radius:9px; overflow:hidden; min-height:0;
@@ -59,32 +69,21 @@
   .hud .v{color:var(--text); font-size:15px; letter-spacing:.04em}
   .hud .v em{font-style:normal; color:var(--dim); font-size:11px; margin-left:8px}
   .legend{
-    position:absolute; left:12px; bottom:68px; display:flex; gap:14px;
+    position:absolute; left:12px; bottom:44px; display:flex; gap:14px;
     color:var(--dim); font-size:10px; pointer-events:none;
   }
   .legend s{text-decoration:none; display:inline-block; width:7px; height:7px; border-radius:2px; margin-right:5px; vertical-align:1px}
-  .foot{
-    position:absolute; right:12px; bottom:68px; color:var(--faint); font-size:10px;
-    letter-spacing:.05em;
+  .foot{position:absolute; right:12px; bottom:44px; color:var(--faint); font-size:10px; letter-spacing:.05em}
+  .seatbar{
+    flex:0 0 auto; display:flex; align-items:center; gap:6px; padding:4px 8px;
+    border-top:1px solid var(--line); background:#080b10;
   }
-  .roster{
-    display:grid; grid-template-columns:repeat(16,1fr); gap:2px;
-    padding:6px 8px 7px; border-top:1px solid var(--line);
-    background:linear-gradient(180deg,#080b10,#06080c); flex:0 0 auto;
+  .seatbar select{
+    background:var(--panel2); color:var(--text); border:1px solid var(--line);
+    border-radius:4px; padding:3px 6px; font:inherit; font-size:11px; min-width:130px;
   }
-  .chip{
-    display:flex; flex-direction:column; gap:2px; padding:3px 4px 4px;
-    border:1px solid transparent; border-radius:4px; cursor:pointer;
-    background:rgba(20,27,38,.45); min-width:0;
-  }
-  .chip:hover{background:rgba(30,40,54,.7)}
-  .chip .nm{font-size:8px; line-height:1.1; letter-spacing:.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-  .chip .bar{height:3px; background:#0a0e14; border-radius:2px; overflow:hidden}
-  .chip .bar i{display:block; height:100%; width:0%; transition:width .25s linear}
-  .chip.on{border-color:var(--amber); box-shadow:0 0 0 1px rgba(255,180,84,.25) inset}
-  .chip.dead{opacity:.35}
-  @keyframes pulseGlow{0%{box-shadow:0 0 0 0 rgba(255,255,255,.55)}100%{box-shadow:0 0 0 7px rgba(255,255,255,0)}}
-  .chip.pulse{animation:pulseGlow .8s ease-out}
+  .seatbar button{padding:3px 8px}
+  .seatbar .meta{color:var(--dim); font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .right{display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; gap:10px; min-height:0}
   .card{
     display:flex; flex-direction:column; min-height:0; min-width:0;
@@ -109,35 +108,49 @@
     <button data-speed="2">2x</button>
     <button data-speed="4">4x</button>
     <button data-speed="0">max</button>
-    <select id="birthmode" title="birth rule">
+    <button id="pause">pause</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <label>birth
+    <select id="birthmode">
       <option value="weakest">weakest</option>
       <option value="threshold">threshold</option>
       <option value="oldest">oldest</option>
       <option value="off">off</option>
     </select>
-    <select id="maxage" title="maximum age">
-      <option value="0">age off</option>
-      <option value="6000">age 6k</option>
-      <option value="8000">age 8k</option>
-      <option value="12000">age 12k</option>
+  </label>
+  <label>age
+    <select id="maxage">
+      <option value="0">off</option>
+      <option value="6000">6k</option>
+      <option value="8000">8k</option>
+      <option value="12000">12k</option>
     </select>
-    <select id="density" title="food density">
-      <option value="0.05">food 5%</option>
-      <option value="0.04">food 4%</option>
-      <option value="0.03">food 3%</option>
-      <option value="0.02">food 2%</option>
-      <option value="0.01">food 1%</option>
-      <option value="0.008">food 0.8%</option>
-      <option value="0.006">food 0.6%</option>
-      <option value="0.005">food 0.5%</option>
-      <option value="0.004">food 0.4%</option>
+  </label>
+  <label>food
+    <select id="density">
+      <option value="0.05">5%</option>
+      <option value="0.04">4%</option>
+      <option value="0.03">3%</option>
+      <option value="0.02">2%</option>
+      <option value="0.01">1%</option>
+      <option value="0.008">0.8%</option>
+      <option value="0.006">0.6%</option>
+      <option value="0.005">0.5%</option>
+      <option value="0.004">0.4%</option>
     </select>
-    <button id="auto">auto</button>
-    <button id="pause">pause</button>
-  </div>
-</header>
+  </label>
+  <button id="cycle">cycle off</button>
+  <span class="phase" id="phase">lean</span>
+  <span class="phase" id="foodnow">food 0.6%</span>
+  <span class="spacer"></span>
+  <button id="brain">brain off</button>
+  <button id="auto">auto</button>
+</div>
 
-<main>
+<main class="brain-off">
   <section class="pane">
     <canvas id="world"></canvas>
     <div class="hud" id="hud"></div>
@@ -147,7 +160,12 @@
       <span><s style="background:var(--red)"></s>low energy</span>
     </div>
     <div class="foot">prakriti · the room</div>
-    <div class="roster" id="roster"></div>
+    <div class="seatbar">
+      <button id="prev">&#9664;</button>
+      <select id="seat"></select>
+      <button id="next">&#9654;</button>
+      <span class="meta" id="seatmeta"></span>
+    </div>
   </section>
 
   <section class="right">
@@ -164,7 +182,7 @@
       <canvas id="sal"></canvas>
     </div>
     <div class="card">
-      <h3>state map <span>last 900 steps</span></h3>
+      <h3>state map <span>last 360 steps</span></h3>
       <canvas id="map"></canvas>
     </div>
   </section>
@@ -175,10 +193,14 @@
   const $ = id => document.getElementById(id);
   const ACTIONS = ["forward","left","right","eat"];
   let state = null;
-  let rosterBuilt = false;
-  let lastHeader = 0, lastRoster = 0;
+  let dirty = true;
+  let brainOn = false;
+  let lastDraw = 0;
+  let seatBuilt = false;
+  let lastHeader = 0;
   const prevEaten = new Map();
   const pulseUntil = new Map();
+  const sizeCache = new WeakMap();
 
   // ---------------------------------------------------------------- socket
   let ws = null;
@@ -188,6 +210,7 @@
       try {
         state = JSON.parse(e.data);
         updatePulses(state.roster);
+        dirty = true;
       } catch(_){}
     };
     ws.onclose = () => { state = null; setTimeout(connect, 800); };
@@ -196,15 +219,6 @@
   connect();
 
   function send(o){ if(ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
-
-  document.querySelectorAll("[data-speed]").forEach(b => {
-    b.onclick = () => send({cmd:"speed", value: parseFloat(b.dataset.speed)});
-  });
-  $("pause").onclick = () => send({cmd:"pause"});
-  $("birthmode").onchange = () => send({cmd:"birth_mode", mode: $("birthmode").value});
-  $("maxage").onchange = () => send({cmd:"max_age", value: parseFloat($("maxage").value)});
-  $("density").onchange = () => send({cmd:"food_density", value: parseFloat($("density").value)});
-  $("auto").onclick = () => send({cmd:"focus", mode:"auto"});
 
   function updatePulses(roster){
     if(!roster) return;
@@ -216,11 +230,47 @@
     }
   }
 
+  // ---------------------------------------------------------------- controls
+  document.querySelectorAll("[data-speed]").forEach(b => {
+    b.onclick = () => send({cmd:"speed", value: parseFloat(b.dataset.speed)});
+  });
+  $("pause").onclick = () => send({cmd:"pause"});
+  $("birthmode").onchange = () => send({cmd:"birth_mode", mode: $("birthmode").value});
+  $("maxage").onchange = () => send({cmd:"max_age", value: parseFloat($("maxage").value)});
+  $("density").onchange = () => send({cmd:"food_density", value: parseFloat($("density").value)});
+  $("cycle").onclick = () => send({cmd:"cycle", value: !(state && state.cycle_on)});
+  $("auto").onclick = () => send({cmd:"focus", mode:"auto"});
+  $("brain").onclick = () => {
+    brainOn = !brainOn;
+    document.querySelector("main").classList.toggle("brain-off", !brainOn);
+    sizeCache.clear();
+    dirty = true;
+  };
+
+  function moveSeat(d){
+    if(!state || !state.roster) return;
+    const n = state.roster.length;
+    const cur = state.agent ? state.agent.slot : (state.focus_slot || 0);
+    takeSeat((cur + d + n) % n);
+  }
+  function takeSeat(slot){ send({cmd:"focus", slot}); dirty = true; }
+  $("prev").onclick = () => moveSeat(-1);
+  $("next").onclick = () => moveSeat(1);
+  $("seat").onchange = () => takeSeat(parseInt($("seat").value, 10));
+
+  window.addEventListener("resize", () => { sizeCache.clear(); dirty = true; });
+  document.addEventListener("visibilitychange", () => { if(!document.hidden) dirty = true; });
+
   // ---------------------------------------------------------------- canvas
-  function fit(c){
-    const dpr = window.devicePixelRatio || 1;
+  function measure(c){
     const r = c.getBoundingClientRect();
-    const W = Math.max(1, Math.floor(r.width)), H = Math.max(1, Math.floor(r.height));
+    sizeCache.set(c, { w: Math.max(1, Math.floor(r.width)), h: Math.max(1, Math.floor(r.height)) });
+  }
+  function fit(c){
+    let s = sizeCache.get(c);
+    if(!s){ measure(c); s = sizeCache.get(c); }
+    const dpr = window.devicePixelRatio || 1;
+    const W = s.w, H = s.h;
     if (c.width !== Math.floor(W*dpr) || c.height !== Math.floor(H*dpr)){
       c.width = Math.floor(W*dpr); c.height = Math.floor(H*dpr);
     }
@@ -243,19 +293,14 @@
   // ---------------------------------------------------------------- header
   function drawHeader(){
     if(!state) return;
-    const now = performance.now();
-    if(now - lastHeader < 100) return;
-    lastHeader = now;
-
-    const s = state.stats, a = state.agent;
+    const s = state.stats;
     const bits = [
       ["pop", s.pop],
       ["gen", s.max_gen],
       ["step", state.step.toLocaleString()],
       ["births", s.births],
       ["deaths", s.deaths],
-      ["best eaten", s.best_eaten.toFixed(0)],
-      ["mean life", s.mean_life.toFixed(0)],
+      ["best", s.best_eaten.toFixed(0)],
     ];
     $("stats").innerHTML = bits.map(([k,v]) => `<span><i>${k}</i><b>${v}</b></span>`).join("");
     document.querySelectorAll("[data-speed]").forEach(b => {
@@ -264,72 +309,57 @@
     });
     $("pause").classList.toggle("on", state.paused);
     $("pause").textContent = state.paused ? "resume" : "pause";
-    const bm = $("birthmode");
-    if (bm && bm.value !== (state.birth_mode || "threshold")) bm.value = state.birth_mode || "threshold";
-    const ma = $("maxage");
-    const mv = String(state.max_age || 0);
-    if (ma && [...ma.options].some(o => o.value === mv)) ma.value = mv;
-    const fd = $("density");
-    const fv = String(state.food_density || 0.05);
-    if (fd && [...fd.options].some(o => o.value === fv)) fd.value = fv;
+  }
+
+  // ---------------------------------------------------------------- toolbar
+  function drawToolbar(){
+    if(!state) return;
+    $("cycle").textContent = state.cycle_on ? "cycle on" : "cycle off";
+    $("cycle").classList.toggle("on", !!state.cycle_on);
+    $("phase").textContent = state.cycle_on ? state.cycle_label : "no cycle";
+    $("foodnow").textContent = `food ${(state.food_density*100).toFixed(1)}%`;
+    $("brain").textContent = brainOn ? "brain on" : "brain off";
+    $("brain").classList.toggle("on", brainOn);
     $("auto").classList.toggle("on", state.focus_mode === "auto");
 
+    const den = $("density");
+    den.disabled = !!state.cycle_on;
+    const fv = String(state.food_density);
+    if(!state.cycle_on && [...den.options].some(o => o.value === fv)) den.value = fv;
+
+    const bm = $("birthmode");
+    if(bm && bm.value !== (state.birth_mode || "threshold")) bm.value = state.birth_mode || "threshold";
+    const ma = $("maxage");
+    const mv = String(state.max_age || 0);
+    if(ma && [...ma.options].some(o => o.value === mv)) ma.value = mv;
+  }
+
+  // ---------------------------------------------------------------- seatbar
+  function buildSeats(){
+    if(seatBuilt || !state || !state.roster) return;
+    const sel = $("seat");
+    sel.innerHTML = "";
+    for(const r of state.roster){
+      const o = document.createElement("option");
+      o.value = String(r.slot);
+      o.textContent = `${r.slot} ${r.name}`;
+      sel.appendChild(o);
+    }
+    seatBuilt = true;
+  }
+
+  function drawSeatbar(){
+    if(!state) return;
+    buildSeats();
+    const a = state.agent;
+    const slot = a ? a.slot : state.focus_slot;
+    if(slot != null && $("seat").value !== String(slot)) $("seat").value = String(slot);
     if(a){
-      const hue = a.hue || 35;
-      $("hud").innerHTML =
-        `<div class="k" style="color:hsl(${hue} 75% 68%)">${a.name} · seat ${a.slot} · gen ${a.gen}</div>` +
-        `<div class="v">${a.energy.toFixed(1)}<em>energy</em></div>` +
-        `<div class="k">age ${a.age} · eaten ${a.eaten} · cap ${(a.cap || 0).toFixed(4)} · ${a.action === 3 ? "eat" : ACTIONS[a.action]}</div>`;
-      $("pinfo").textContent = `err ${a.pred_err.toFixed(4)}`;
-      $("uinfo").textContent = `${state.stats.pop} alive · ${a.units.length} units`;
-      const leg = $("legadi");
-      if(leg) leg.style.background = `hsl(${hue} 80% 60%)`;
+      $("seatmeta").textContent =
+        `${a.name} · gen ${a.gen} · ${a.energy.toFixed(1)} energy · ${a.eaten} eaten · cap ${(a.cap || 0).toFixed(3)}`;
+    } else {
+      $("seatmeta").textContent = "empty seat";
     }
-  }
-
-  // ---------------------------------------------------------------- roster
-  function buildRoster(){
-    const el = $("roster");
-    el.innerHTML = "";
-    for(let i=0;i<32;i++){
-      const d = document.createElement("div");
-      d.className = "chip";
-      d.innerHTML = `<div class="nm"></div><div class="bar"><i></i></div>`;
-      d.onclick = () => send({cmd:"focus", slot:i});
-      el.appendChild(d);
-    }
-    rosterBuilt = true;
-  }
-
-  function drawRoster(){
-    if(!state || !state.roster) return;
-    const now = performance.now();
-    if(now - lastRoster < 90) return;
-    lastRoster = now;
-    if(!rosterBuilt) buildRoster();
-    const el = $("roster");
-    state.roster.forEach((r, i) => {
-      const d = el.children[i];
-      if(!d) return;
-      const nm = d.querySelector(".nm");
-      const bar = d.querySelector(".bar i");
-      const v = r.alive ? r.vitality : 0;
-      const hue = r.hue;
-      const light = 34 + 32 * v;
-      nm.textContent = r.name.length > 8 ? r.name.slice(0, 8) : r.name;
-      nm.style.color = r.alive ? `hsl(${hue} 72% ${light + 16}%)` : "#303b4a";
-      d.style.background = r.alive
-        ? `hsla(${hue}, 55%, ${14 + 12*v}%, ${0.28 + 0.42*v})`
-        : "rgba(18,24,34,.45)";
-      bar.style.width = `${Math.max(0, Math.min(100, r.energy / 1.2))}%`;
-      bar.style.background = `hsl(${hue} 80% ${light}%)`;
-      d.classList.toggle("on", !!r.focused);
-      d.classList.toggle("dead", !r.alive);
-      d.classList.toggle("pulse", (pulseUntil.get(i) || 0) > now);
-      d.title = r.alive
-        ? `${r.name} · seat ${r.slot} · id ${r.id} · gen ${r.gen} · age ${r.age} · energy ${r.energy.toFixed(1)} · cap ${(r.cap || 0).toFixed(4)} · eaten ${r.eaten}`
-        : `${r.name} · seat ${r.slot} · empty`;
-    });
   }
 
   // ---------------------------------------------------------------- world
@@ -390,8 +420,7 @@
       const d = (1 - a.whiskers[i]) * w.range;
       const ex = ox + (a.x + Math.cos(ang)*d)*cell;
       const ey = oy + (a.y + Math.sin(ang)*d)*cell;
-      const near = a.whiskers[i];
-      ctx.strokeStyle = `hsla(${hue}, 70%, 65%, ${.12+.42*near})`;
+      ctx.strokeStyle = `hsla(${hue}, 70%, 65%, ${.12+.42*a.whiskers[i]})`;
       ctx.lineWidth = 1.1;
       ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(ex,ey); ctx.stroke();
     }
@@ -405,8 +434,9 @@
     ctx.beginPath();
     ctx.moveTo(s,0); ctx.lineTo(-s*.62,s*.55); ctx.lineTo(-s*.32,0); ctx.lineTo(-s*.62,-s*.55);
     ctx.closePath();
-    ctx.fillStyle = col; ctx.fill();
-    ctx.shadowColor = col; ctx.shadowBlur = pulse ? 22 : 10; ctx.fill();
+    ctx.fillStyle = col;
+    if(pulse){ ctx.shadowColor = col; ctx.shadowBlur = 14; }
+    ctx.fill();
     ctx.restore();
 
     const frac = Math.max(0, Math.min(1, a.energy/110));
@@ -418,7 +448,7 @@
     text(ctx, a.name, px, py + cell*2.1, `hsla(${hue}, 75%, 72%, .85)`, 9, "center");
   }
 
-  // ---------------------------------------------------------------- units
+  // ---------------------------------------------------------------- panels
   function drawUnits(){
     const c = $("units"), {ctx,W,H} = fit(c);
     if(!state || !state.agent) return;
@@ -435,7 +465,6 @@
     }
   }
 
-  // ---------------------------------------------------------------- policy
   function drawPolicy(){
     const c = $("policy"), {ctx,W,H} = fit(c);
     if(!state || !state.agent) return;
@@ -468,7 +497,6 @@
     }
   }
 
-  // ---------------------------------------------------------------- sal
   function drawSal(){
     const c = $("sal"), {ctx,W,H} = fit(c);
     if(!state || !state.agent) return;
@@ -488,7 +516,6 @@
     }
   }
 
-  // ---------------------------------------------------------------- map
   function drawMap(){
     const c = $("map"), {ctx,W,H} = fit(c);
     if(!state) return;
@@ -524,14 +551,21 @@
   }
 
   // ---------------------------------------------------------------- loop
-  function frame(){
-    drawHeader();
-    drawWorld();
-    drawUnits();
-    drawPolicy();
-    drawSal();
-    drawMap();
-    drawRoster();
+  function frame(ts){
+    if(!document.hidden && dirty && ts - lastDraw >= 33){
+      lastDraw = ts;
+      dirty = false;
+      drawHeader();
+      drawToolbar();
+      drawSeatbar();
+      drawWorld();
+      if(brainOn){
+        drawUnits();
+        drawPolicy();
+        drawSal();
+        drawMap();
+      }
+    }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);

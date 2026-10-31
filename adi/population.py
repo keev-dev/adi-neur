@@ -8,6 +8,7 @@ not stored. It is what remains of the lines that did not stop.
 from collections import deque
 from pathlib import Path
 
+import math
 import numpy as np
 import torch
 
@@ -33,6 +34,13 @@ class Population:
         self.base_cap = 100.0
         self.cap_growth = 0.00001
         self.energy_cap = torch.full((self.N,), self.base_cap)
+        self.min_pop = cfg.min_pop
+        self.cycle_on = False
+        self.cycle_low = 0.006
+        self.cycle_high = 0.03
+        self.cycle_period = 6000
+        self.cycle_phase = 0.0
+        self.cycle_step = 100
         self.visited = torch.zeros(self.N, cfg.grid, cfg.grid, dtype=torch.bool)
         self.path = torch.zeros(self.N)
         self.obs_prev = torch.zeros(self.N, cfg.obs_dim)
@@ -240,6 +248,37 @@ class Population:
                 self.fields.food[slot] = torch.from_numpy(food.astype(np.float32))
         self.food_density = target
 
+    def cycle_target(self) -> float:
+        p = self.cycle_phase / max(1.0, float(self.cycle_period))
+        v = 0.5 - 0.5 * math.cos(2.0 * math.pi * p)
+        return self.cycle_low + (self.cycle_high - self.cycle_low) * v
+
+    def cycle_label(self) -> str:
+        if not self.cycle_on:
+            return "off"
+        p = self.cycle_phase / max(1.0, float(self.cycle_period))
+        if p < 0.125 or p >= 0.875:
+            return "lean"
+        if p < 0.375:
+            return "rising"
+        if p < 0.625:
+            return "plenty"
+        return "falling"
+
+    def set_cycle(self, on: bool, low: float | None = None, high: float | None = None,
+                  period: int | None = None, phase: float | None = None) -> None:
+        self.cycle_on = bool(on)
+        if low is not None:
+            self.cycle_low = max(0.0, min(0.5, float(low)))
+        if high is not None:
+            self.cycle_high = max(self.cycle_low, min(0.5, float(high)))
+        if period is not None:
+            self.cycle_period = max(200, int(period))
+        if phase is not None:
+            self.cycle_phase = float(phase) % self.cycle_period
+        if self.cycle_on:
+            self.set_food_density(self.cycle_target())
+
     # ------------------------------------------------------------------ step
     def step(self) -> None:
         cfg = self.cfg
@@ -360,7 +399,7 @@ class Population:
                 self.spawn(target, p)
 
         # 9. keep the floor
-        while int(self.alive.sum()) < cfg.min_pop:
+        while int(self.alive.sum()) < self.min_pop:
             free = (~self.alive).nonzero().flatten().tolist()
             if not free:
                 break
@@ -371,6 +410,11 @@ class Population:
 
         if not bool(self.alive.any()):
             self._reseed()
+
+        if self.cycle_on:
+            self.cycle_phase = (self.cycle_phase + 1.0) % self.cycle_period
+            if int(self.cycle_phase) % self.cycle_step == 0:
+                self.set_food_density(self.cycle_target())
 
         self.step_i += 1
 
@@ -420,6 +464,12 @@ class Population:
                 "base_cap": self.base_cap,
                 "cap_growth": self.cap_growth,
                 "energy_cap": self.energy_cap.clone(),
+                "min_pop": self.min_pop,
+                "cycle_on": self.cycle_on,
+                "cycle_low": self.cycle_low,
+                "cycle_high": self.cycle_high,
+                "cycle_period": self.cycle_period,
+                "cycle_phase": self.cycle_phase,
                 "max_gen_saved": self.max_gen_saved,
                 "seat_stats": [dict(s) for s in self.seat_stats],
             }
@@ -460,6 +510,12 @@ class Population:
             self.energy_cap.copy_(d["energy_cap"])
         else:
             self.energy_cap.fill_(self.base_cap)
+        self.min_pop = int(d.get("min_pop", self.cfg.min_pop))
+        self.cycle_on = bool(d.get("cycle_on", False))
+        self.cycle_low = float(d.get("cycle_low", 0.006))
+        self.cycle_high = float(d.get("cycle_high", 0.03))
+        self.cycle_period = int(d.get("cycle_period", 6000))
+        self.cycle_phase = float(d.get("cycle_phase", 0.0))
         self.max_gen_saved = int(d.get("max_gen_saved", 0))
         if "seat_stats" in d:
             for i, s in enumerate(d["seat_stats"][: self.N]):
