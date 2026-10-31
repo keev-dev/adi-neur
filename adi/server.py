@@ -10,6 +10,8 @@ from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 VIEWER = Path(__file__).resolve().parent / "viewer.html"
+VIEWER_KALI = Path(__file__).resolve().parent / "kali.html"
+VIEWER_STATS = Path(__file__).resolve().parent / "stats.html"
 
 
 class Command(BaseModel):
@@ -31,6 +33,14 @@ def create_app(sim):
     @app.get("/")
     def index():
         return FileResponse(VIEWER, media_type="text/html")
+
+    @app.get("/kali")
+    def kali():
+        return FileResponse(VIEWER_KALI, media_type="text/html")
+
+    @app.get("/stats")
+    def stats():
+        return FileResponse(VIEWER_STATS, media_type="text/html")
 
     @app.get("/state")
     def state():

@@ -25,6 +25,14 @@ class Population:
         self.N = cfg.n_slots
         self.ar = torch.arange(self.N)
         self.competitive_birth = True
+        self.birth_mode = "threshold"      # weakest | threshold | oldest | off
+        self.birth_threshold = 15.0
+        self.min_replace_age = 200
+        self.visited = torch.zeros(self.N, cfg.grid, cfg.grid, dtype=torch.bool)
+        self.path = torch.zeros(self.N)
+        self.obs_prev = torch.zeros(self.N, cfg.obs_dim)
+        self.seat_stats = [self._fresh_seat_stats() for _ in range(self.N)]
+        self.max_gen_saved = 0
 
         self.brains = BatchedBrains(cfg)
         self.fields = Fields(cfg, self.N)
@@ -64,6 +72,14 @@ class Population:
         # founders are not births in the population count
         self.births = 0
 
+    @staticmethod
+    def _fresh_seat_stats() -> dict:
+        return {
+            "births": 0, "deaths": 0, "total_life": 0, "max_life": 0,
+            "total_eaten": 0.0, "best_eaten": 0.0,
+            "gen_sum": 0, "gen_count": 0, "last_id": -1,
+        }
+
     # ----------------------------------------------------------------- birth
     def spawn(self, slot: int, parent_slot: int | None) -> None:
         cfg = self.cfg
@@ -91,6 +107,15 @@ class Population:
         self.eaten[slot] = 0.0
         self.pred_err[slot] = 0.0
         self.actions[slot] = 0
+        self.visited[slot].zero_()
+        self.path[slot] = 0.0
+        self.obs_prev[slot].zero_()
+        self.visited[slot, int(self.y[slot]), int(self.x[slot])] = True
+        st = self.seat_stats[slot]
+        st["births"] += 1
+        st["gen_sum"] += gen
+        st["gen_count"] += 1
+        st["last_id"] = int(self.ids[slot])
         # a new body must not inherit the old body's accumulated gradient
         for t in self.brains.trainables:
             if t.grad is not None:
@@ -99,6 +124,11 @@ class Population:
         self.log.genome(self.step_i, int(self.ids[slot]), pid, gen, float(self.energy[slot]))
         self.log.event(self.step_i, "birth", int(self.ids[slot]), pid, gen, 0,
                        float(self.energy[slot]), 0)
+        self.log.seat_event(self.step_i, "birth", slot, int(self.ids[slot]), pid, gen, 0,
+                            float(self.energy[slot]), 0)
+        if gen > 0 and gen > self.max_gen_saved:
+            self.max_gen_saved = gen
+            self._save_generation(slot)
 
     def _die(self, slot: int) -> None:
         aid = int(self.ids[slot])
@@ -107,6 +137,14 @@ class Population:
         self.log.event(self.step_i, "death", aid, int(self.parent[slot]), int(self.gen[slot]),
                        age, float(self.energy[slot]), eaten)
         self.lifetimes.append(age)
+        st = self.seat_stats[slot]
+        st["deaths"] += 1
+        st["total_life"] += age
+        st["max_life"] = max(st["max_life"], age)
+        st["total_eaten"] += eaten
+        st["best_eaten"] = max(st["best_eaten"], eaten)
+        self.log.seat_event(self.step_i, "death", slot, aid, int(self.parent[slot]),
+                            int(self.gen[slot]), age, float(self.energy[slot]), eaten)
         if eaten > self.best_eaten:
             self.best_eaten = eaten
             self._save_hof(slot)
@@ -127,6 +165,23 @@ class Population:
                 "eaten": float(self.eaten[slot]),
             }
             name = f"adi_{int(self.ids[slot])}_g{int(self.gen[slot])}_e{int(self.eaten[slot])}.pt"
+            torch.save(payload, d / name)
+        except Exception:
+            pass
+
+    def _save_generation(self, slot: int) -> None:
+        try:
+            d = Path(self.log.root) / "generations"
+            d.mkdir(parents=True, exist_ok=True)
+            payload = self.brains.snapshot_slice(slot)
+            payload["meta"] = {
+                "id": int(self.ids[slot]),
+                "parent": int(self.parent[slot]),
+                "gen": int(self.gen[slot]),
+                "seat": slot,
+                "step": self.step_i,
+            }
+            name = f"gen_{int(self.gen[slot]):04d}_id{int(self.ids[slot])}.pt"
             torch.save(payload, d / name)
         except Exception:
             pass
@@ -155,6 +210,7 @@ class Population:
 
         # 1. sense
         obs = self.fields.sense(self.x, self.y, self.heading, self.energy)
+        self.obs_prev = obs.detach()
         onehot = torch.nn.functional.one_hot(self.prev, cfg.act_dim).float()
         inp = torch.cat([obs, onehot], dim=1)
         h_prev = self.h.detach().clone()
@@ -167,9 +223,16 @@ class Population:
         actions = torch.multinomial(probs, 1).squeeze(1)
 
         # 3. act
+        x0 = self.x.clone()
+        y0 = self.y.clone()
         self.x, self.y, self.heading, self.energy, self.eaten = self.fields.apply(
             actions, self.x, self.y, self.heading, self.energy, self.eaten)
         self.fields.regen()
+        moved = torch.sqrt((self.x - x0) ** 2 + (self.y - y0) ** 2)
+        self.path = self.path + moved
+        cy = self.y.long().clamp(0, cfg.grid - 1)
+        cx = self.x.long().clamp(0, cfg.grid - 1)
+        self.visited[self.ar, cy, cx] = True
 
         # 4. burn
         self.energy = self.energy - cfg.metabolic
@@ -226,21 +289,28 @@ class Population:
             self.energy[p] = self.energy[p] * 0.5
             self.spawn(slot, p)
 
-        # 8b. competitive birth when the room is full.
-        # a body that reaches the threshold replaces the weakest living body.
-        while self.competitive_birth:
-            eligible = (self.alive & (self.energy >= cfg.birth_energy)).nonzero().flatten().tolist()
-            if not eligible:
-                break
-            p = max(eligible, key=lambda s: float(self.energy[s]))
-            others = [s for s in self.alive.nonzero().flatten().tolist()
-                      if s != p and int(self.age[s]) > 0]
-            if not others:
-                break
-            weakest = min(others, key=lambda s: float(self.energy[s]))
-            self._die(weakest)
-            self.energy[p] = self.energy[p] * 0.5
-            self.spawn(weakest, p)
+        # 8b. replace a body when the room is full.
+        if self.birth_mode != "off":
+            while True:
+                eligible = (self.alive & (self.energy >= cfg.birth_energy)).nonzero().flatten().tolist()
+                if not eligible:
+                    break
+                p = max(eligible, key=lambda s: float(self.energy[s]))
+                others = [s for s in self.alive.nonzero().flatten().tolist()
+                          if s != p and int(self.age[s]) >= self.min_replace_age]
+                if not others:
+                    break
+                if self.birth_mode == "oldest":
+                    target = max(others, key=lambda s: int(self.age[s]))
+                elif self.birth_mode == "threshold":
+                    target = min(others, key=lambda s: float(self.energy[s]))
+                    if float(self.energy[target]) >= self.birth_threshold:
+                        break
+                else:  # weakest
+                    target = min(others, key=lambda s: float(self.energy[s]))
+                self._die(target)
+                self.energy[p] = self.energy[p] * 0.5
+                self.spawn(target, p)
 
         # 9. keep the floor
         while int(self.alive.sum()) < cfg.min_pop:
@@ -282,6 +352,9 @@ class Population:
                 "probs": self.probs.clone(),
                 "actions": self.actions.clone(),
                 "salience": self.salience.clone(),
+                "visited": self.visited.clone(),
+                "path": self.path.clone(),
+                "obs_prev": self.obs_prev.clone(),
                 "next_id": self.next_id,
                 "step_i": self.step_i,
                 "births": self.births,
@@ -292,6 +365,11 @@ class Population:
                 "accum": self.accum,
                 "rng": self.rng.bit_generator.state,
                 "competitive_birth": self.competitive_birth,
+                "birth_mode": self.birth_mode,
+                "birth_threshold": self.birth_threshold,
+                "min_replace_age": self.min_replace_age,
+                "max_gen_saved": self.max_gen_saved,
+                "seat_stats": [dict(s) for s in self.seat_stats],
             }
 
     def load_state_dict(self, d: dict) -> None:
@@ -304,6 +382,12 @@ class Population:
                          "x", "y", "heading", "h", "prev", "eaten", "pred_err",
                          "obs", "probs", "actions", "salience"):
                 getattr(self, name).copy_(d[name])
+            if "visited" in d:
+                self.visited.copy_(d["visited"])
+            if "path" in d:
+                self.path.copy_(d["path"])
+            if "obs_prev" in d:
+                self.obs_prev.copy_(d["obs_prev"])
         self.next_id = int(d["next_id"])
         self.step_i = int(d["step_i"])
         self.births = int(d["births"])
@@ -313,7 +397,14 @@ class Population:
         self.lifetimes = deque(d.get("lifetimes", []), maxlen=300)
         self.accum = int(d.get("accum", 0))
         self.rng.bit_generator.state = d["rng"]
-        self.competitive_birth = bool(d.get("competitive_birth", True))
+        self.birth_mode = d.get("birth_mode", "threshold")
+        self.birth_threshold = float(d.get("birth_threshold", 15.0))
+        self.min_replace_age = int(d.get("min_replace_age", 200))
+        self.max_gen_saved = int(d.get("max_gen_saved", 0))
+        if "seat_stats" in d:
+            for i, s in enumerate(d["seat_stats"][: self.N]):
+                self.seat_stats[i] = dict(s)
+        self.competitive_birth = self.birth_mode != "off"
 
     # ----------------------------------------------------------------- stats
     def stats(self) -> dict:

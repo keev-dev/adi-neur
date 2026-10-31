@@ -211,15 +211,19 @@ class Simulation:
             if self.pop.step_i % 20 == 0:
                 self.log.trace({
                     "step": self.pop.step_i,
+                    "seat": f,
+                    "name": NAMES[f] if f < len(NAMES) else f"seat-{f}",
                     "id": int(self.pop.ids[f]),
                     "gen": int(self.pop.gen[f]),
                     "age": int(self.pop.age[f]),
                     "energy": round(float(self.pop.energy[f]), 3),
                     "action": int(self.pop.actions[f]),
                     "pred_err": round(float(self.pop.pred_err[f]), 6),
+                    "coverage": round(float(self.pop.visited[f].float().mean()), 4),
+                    "path": round(float(self.pop.path[f]), 2),
                     "sal": [round(float(v), 5) for v in self.pop.salience[f]],
                     "h": [round(float(v), 4) for v in self.pop.h[f]],
-                    "obs": [round(float(v), 4) for v in self.pop.obs[f]],
+                    "obs": [round(float(v), 4) for v in self.pop.obs_prev[f]],
                 })
                 if self.pop.step_i % 200 == 0:
                     self.log.flush()
@@ -298,7 +302,14 @@ class Simulation:
             elif cmd == "checkpoint":
                 self.save_checkpoint()
             elif cmd == "churn":
-                self.pop.competitive_birth = bool(msg.get("value", True))
+                on = bool(msg.get("value", True))
+                self.pop.birth_mode = "threshold" if on else "off"
+                self.pop.competitive_birth = on
+            elif cmd == "birth_mode":
+                mode = msg.get("mode") or "threshold"
+                if mode in ("weakest", "threshold", "oldest", "off"):
+                    self.pop.birth_mode = mode
+                    self.pop.competitive_birth = mode != "off"
             elif cmd == "focus":
                 if msg.get("mode") == "auto":
                     self.focus_mode = "auto"
@@ -323,6 +334,8 @@ class Simulation:
         else:
             self.latest["paused"] = self.paused
             self.latest["speed"] = self.speed
+            self.latest["birth_mode"] = self.pop.birth_mode
+            self.latest["churn"] = self.pop.birth_mode != "off"
         return self.latest
 
     def _build_snapshot(self) -> dict:
@@ -347,8 +360,34 @@ class Simulation:
                     "age": ag,
                     "energy": round(max(0.0, en), 1),
                     "eaten": int(ea),
+                    "rate": round(ea / max(1, ag) * 1000.0, 2),
+                    "coverage": round(float(self.pop.visited[i].float().mean()), 4),
+                    "path": round(float(self.pop.path[i]), 1),
+                    "probs": [round(float(v), 3) for v in self.pop.probs[i]],
+                    "action": int(self.pop.actions[i]),
+                    "pred_err": round(float(self.pop.pred_err[i]), 5),
                     "vitality": round(vitality(en, ea, ag, gn) if alive else 0.0, 3),
                     "focused": i == f,
+                })
+
+            seat_stats = []
+            for i in range(self.pop.N):
+                st = self.pop.seat_stats[i]
+                seat_stats.append({
+                    "slot": i,
+                    "name": NAMES[i] if i < len(NAMES) else f"seat-{i}",
+                    "births": int(st["births"]),
+                    "deaths": int(st["deaths"]),
+                    "mean_life": round(st["total_life"] / max(1, st["deaths"]), 1),
+                    "max_life": int(st["max_life"]),
+                    "mean_gen": round(st["gen_sum"] / max(1, st["gen_count"]), 2),
+                    "mean_food": round(st["total_eaten"] / max(1, st["deaths"]), 2),
+                    "best_food": round(st["best_eaten"], 1),
+                    "current_id": int(self.pop.ids[i]),
+                    "current_gen": int(self.pop.gen[i]),
+                    "current_age": int(self.pop.age[i]),
+                    "current_energy": round(max(0.0, float(self.pop.energy[i])), 1),
+                    "alive": bool(self.pop.alive[i]),
                 })
 
             base = {
@@ -358,9 +397,11 @@ class Simulation:
                 "focus_id": self.focus_id,
                 "focus_slot": self.focus_slot,
                 "focus_mode": self.focus_mode,
-                "churn": bool(self.pop.competitive_birth),
+                "churn": self.pop.birth_mode != "off",
+                "birth_mode": self.pop.birth_mode,
                 "stats": stats,
                 "roster": roster,
+                "seat_stats": seat_stats,
                 "map": [[round(x, 3), round(y, 3), l] for (x, y, l) in self.map_pts],
                 "trail": [[round(x, 2), round(y, 2)] for (x, y) in self.trail],
                 "err_hist": [round(v, 5) for v in self.err_hist],
@@ -410,6 +451,8 @@ class Simulation:
                 "probs": [round(float(v), 4) for v in probs],
                 "pred_err": float(self.pop.pred_err[f]),
                 "eaten": int(ea),
+                "coverage": round(float(self.pop.visited[f].float().mean()), 4),
+                "path": round(float(self.pop.path[f]), 1),
                 "units": [round(float(v), 3) for v in self.pop.h[f]],
                 "sal": [round(float(v), 3) for v in self.pop.salience[f]],
             }

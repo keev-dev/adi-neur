@@ -19,14 +19,17 @@ class Logger:
 
         events = self.root / "events.csv"
         genome = self.root / "genome.csv"
+        seats = self.root / "seat_events.csv"
         traits = self.root / "traits.csv"
         self.trace_path = self.root / "trace.jsonl"
 
         new_events = not events.exists()
         new_genome = not genome.exists()
+        new_seats = not seats.exists()
 
         self.f_events = open(events, "a", newline="", encoding="utf-8")
         self.f_genome = open(genome, "a", newline="", encoding="utf-8")
+        self.f_seats = open(seats, "a", newline="", encoding="utf-8")
         self.f_trace = open(self.trace_path, "a", encoding="utf-8")
 
         if new_events:
@@ -35,6 +38,9 @@ class Logger:
         if new_genome:
             csv.writer(self.f_genome).writerow(
                 ["step", "id", "parent", "gen", "energy"])
+        if new_seats:
+            csv.writer(self.f_seats).writerow(
+                ["step", "event", "seat", "id", "parent", "gen", "age", "energy", "eaten"])
         if not traits.exists():
             with open(traits, "w", newline="", encoding="utf-8") as f:
                 csv.writer(f).writerow(["id", "name", "probe", "value", "note", "step"])
@@ -48,15 +54,19 @@ class Logger:
         csv.writer(self.f_events).writerow(
             [step, kind, aid, parent, gen, age, round(energy, 2), int(eaten)])
 
+    def seat_event(self, step, kind, seat, aid, parent, gen, age, energy, eaten):
+        csv.writer(self.f_seats).writerow(
+            [step, kind, seat, aid, parent, gen, age, round(energy, 2), int(eaten)])
+
     def trace(self, obj: dict):
         self.f_trace.write(json.dumps(obj, separators=(",", ":")) + "\n")
 
     def flush(self):
-        for f in (self.f_events, self.f_genome, self.f_trace):
+        for f in (self.f_events, self.f_genome, self.f_seats, self.f_trace):
             f.flush()
 
     def close(self):
-        for f in (self.f_events, self.f_genome, self.f_trace):
+        for f in (self.f_events, self.f_genome, self.f_seats, self.f_trace):
             try:
                 f.close()
             except Exception:

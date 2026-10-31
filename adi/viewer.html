@@ -27,7 +27,14 @@
   .stats{display:flex; gap:14px; color:var(--dim); flex:1; overflow:hidden; white-space:nowrap}
   .stats b{color:var(--text); font-weight:600}
   .stats i{font-style:normal; color:var(--faint); margin-right:4px}
+  .links{display:flex; gap:12px; margin-left:8px}
+  .links a{color:var(--dim); text-decoration:none; font-size:11px; letter-spacing:.04em}
+  .links a:hover{color:var(--text)}
   .controls{display:flex; gap:4px; align-items:center}
+  .controls select{
+    background:var(--panel2); color:var(--dim); border:1px solid var(--line);
+    border-radius:5px; padding:5px 6px; font:inherit; font-size:11px; cursor:pointer;
+  }
   .controls button{
     background:var(--panel2); color:var(--dim); border:1px solid var(--line);
     border-radius:5px; padding:5px 9px; font:inherit; font-size:11px; cursor:pointer;
@@ -96,12 +103,18 @@
 <header>
   <div class="brand">ADI <span>v0</span></div>
   <div class="stats" id="stats"></div>
+  <nav class="links"><a href="/kali">kali</a><a href="/stats">stats</a></nav>
   <div class="controls">
     <button data-speed="1">1x</button>
     <button data-speed="2">2x</button>
     <button data-speed="4">4x</button>
     <button data-speed="0">max</button>
-    <button id="churn">churn</button>
+    <select id="birthmode" title="birth rule">
+      <option value="weakest">weakest</option>
+      <option value="threshold">threshold</option>
+      <option value="oldest">oldest</option>
+      <option value="off">off</option>
+    </select>
     <button id="auto">auto</button>
     <button id="pause">pause</button>
   </div>
@@ -171,7 +184,7 @@
     b.onclick = () => send({cmd:"speed", value: parseFloat(b.dataset.speed)});
   });
   $("pause").onclick = () => send({cmd:"pause"});
-  $("churn").onclick = () => send({cmd:"churn", value: !(state && state.churn)});
+  $("birthmode").onchange = () => send({cmd:"birth_mode", mode: $("birthmode").value});
   $("auto").onclick = () => send({cmd:"focus", mode:"auto"});
 
   function updatePulses(roster){
@@ -232,8 +245,8 @@
     });
     $("pause").classList.toggle("on", state.paused);
     $("pause").textContent = state.paused ? "resume" : "pause";
-    $("churn").classList.toggle("on", !!state.churn);
-    $("churn").textContent = state.churn ? "churn on" : "churn off";
+    const bm = $("birthmode");
+    if (bm && bm.value !== (state.birth_mode || "threshold")) bm.value = state.birth_mode || "threshold";
     $("auto").classList.toggle("on", state.focus_mode === "auto");
 
     if(a){

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Adi · Stats</title>
+<style>
+  :root{--bg:#06080c;--line:#182130;--text:#c6d2e2;--dim:#66758a;--amber:#ffb454}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  header{display:flex;align-items:center;gap:18px;padding:12px 16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#0a0e14,#070a0f)}
+  .brand{font-weight:700;letter-spacing:.22em;color:var(--amber)}
+  .brand span{color:var(--dim);font-weight:400;letter-spacing:.1em;margin-left:4px}
+  .meta{color:var(--dim);flex:1}
+  .meta b{color:var(--text)}
+  nav a{color:var(--dim);text-decoration:none;margin-left:14px}
+  nav a:hover{color:var(--text)}
+  .wrap{padding:14px 16px}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+  th{color:var(--dim);font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:600;position:sticky;top:0;background:var(--bg)}
+  th:nth-child(2),td:nth-child(2){text-align:left}
+  tr.dead td{color:#4a5768}
+  tr.total td{border-top:1px solid #26344a;color:var(--text);font-weight:600}
+  .note{color:#3a4a5f;margin-top:12px;font-size:10px}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">ADI <span>stats</span></div>
+  <div class="meta" id="meta">...</div>
+  <nav><a href="/">map</a><a href="/kali">kali</a></nav>
+</header>
+<div class="wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>seat</th><th>name</th><th>births</th><th>deaths</th>
+        <th>mean life</th><th>max life</th><th>mean gen</th>
+        <th>mean food</th><th>best food</th><th>current</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+  <div class="note">mean food = cells eaten per body at death. current = id / generation / age / energy.</div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+async function tick(){
+  try{
+    const d = await (await fetch('/state')).json();
+    const s = d.stats;
+    $('meta').innerHTML = `step <b>${d.step.toLocaleString()}</b> · pop <b>${s.pop}</b> · gen <b>${s.max_gen}</b> · best <b>${s.best_eaten.toFixed(0)}</b>`;
+    const rows = d.seat_stats.slice().sort((a,b) => a.slot - b.slot);
+    let tb=0, td=0, wl=0, wf=0, bf=0;
+    for(const r of rows){ tb+=r.births; td+=r.deaths; wl+=r.mean_life*r.deaths; wf+=r.mean_food*r.deaths; bf=Math.max(bf,r.best_food); }
+    $('rows').innerHTML = rows.map(r => `<tr class="${r.alive?'':'dead'}">
+      <td>${r.slot}</td>
+      <td>${r.name}</td>
+      <td>${r.births}</td><td>${r.deaths}</td>
+      <td>${r.deaths? r.mean_life.toFixed(0):"—"}</td><td>${r.max_life||"—"}</td>
+      <td>${r.mean_gen.toFixed(1)}</td>
+      <td>${r.deaths? r.mean_food.toFixed(1):"—"}</td><td>${r.best_food? r.best_food.toFixed(0):"—"}</td>
+      <td>${r.alive ? `${r.current_id} / g${r.current_gen} / ${r.current_age} / ${r.current_energy}` : "—"}</td>
+    </tr>`).join("") +
+    `<tr class="total"><td></td><td>all seats</td><td>${tb}</td><td>${td}</td>
+      <td>${td? (wl/td).toFixed(0):"—"}</td><td></td><td></td>
+      <td>${td? (wf/td).toFixed(1):"—"}</td><td>${bf? bf.toFixed(0):"—"}</td><td></td></tr>`;
+  }catch(e){}
+}
+setInterval(tick, 1500); tick();
+</script>
+</body>
+</html>

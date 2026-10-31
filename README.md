@@ -74,9 +74,29 @@ foraging, and lineage depth. A body flashes when it eats.
 The roster under the room shows all 32 seats. Click a seat to focus it. The
 `auto` button returns to the newest line.
 
-The `churn` button turns competitive birth on or off. With it off, births happen
-only when a seat is free. The population may then freeze at the cap. Compare the
-two regimes.
+The birth-rule select turns competitive birth on or off and chooses the
+replacement rule. With it off, births happen only when a seat is free. The
+population may then freeze at the cap. Compare the regimes.
+
+## Seat table and per-seat stats
+
+- **/kali** — a table of the living bodies. Seat, name, id, generation, age,
+  energy, cells eaten, rate, coverage, path, action mix, guess error. Sort by
+  food, coverage, rate, or generation. Click a row to focus that seat on the map.
+- **/stats** — one row per seat: births, deaths, mean life, max life, mean
+  generation, mean cells eaten per body, best cells eaten, and the current body.
+
+Coverage is the fraction of the room the body has visited. Path is the distance
+it has moved. Both start at zero when a body is born.
+
+The birth rule has four modes, selected in the header:
+
+- `weakest` — a rich body replaces the weakest living body.
+- `threshold` — a rich body replaces the weakest only if its energy is below 15.
+- `oldest` — a rich body replaces the oldest living body.
+- `off` — no replacement.
+
+`threshold` is the default for new runs. It is the slower, less churny rule.
 
 ## Files
 
