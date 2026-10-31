@@ -30,7 +30,8 @@ class BatchedBrains:
         self.W_pred = nn.Parameter(torch.zeros(self.N, self.H, self.O, dtype=f))
         self.b_pred = nn.Parameter(torch.zeros(self.N, self.O, dtype=f))
 
-        # policy is encoded, not learned. Frozen inside a life.
+        # policy is encoded. Frozen inside a life. The parent's effective use
+        # is added to the child at birth.
         self.W_pol = nn.Parameter(torch.zeros(self.N, self.H, self.A, dtype=f), requires_grad=False)
         self.b_pol = nn.Parameter(torch.zeros(self.N, self.A, dtype=f), requires_grad=False)
 

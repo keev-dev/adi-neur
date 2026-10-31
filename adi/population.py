@@ -56,6 +56,13 @@ class Population:
 
         self.brains = BatchedBrains(cfg)
         self.fields = Fields(cfg, self.N)
+        # Use-dependent inheritance. The policy is frozen inside a life. The
+        # parent records the decayed average of effective use. The child gets
+        # the record at birth. The gain matches the old 0.001-per-step total
+        # over the ~2,000-step decay horizon.
+        self.use_gain = 2.0
+        self.use_decay = 0.9995
+        self.use = torch.zeros(self.N, cfg.hidden, cfg.act_dim)
 
         self.alive = torch.zeros(self.N, dtype=torch.bool)
         self.ids = torch.full((self.N,), -1, dtype=torch.long)
@@ -111,6 +118,9 @@ class Population:
             pid = -1
         else:
             self.brains.copy(parent_slot, slot)
+            with torch.no_grad():
+                self.brains.W_pol[slot].add_(self.use_gain * self.use[parent_slot])
+                self.brains.W_pol[slot].clamp_(-2.0, 2.0)
             self.brains.mutate(slot)
             gen = int(self.gen[parent_slot]) + 1
             pid = int(self.ids[parent_slot])
@@ -136,6 +146,7 @@ class Population:
         self.eaten[slot] = 0.0
         self.pred_err[slot] = 0.0
         self.actions[slot] = 0
+        self.use[slot].zero_()
         self.visited[slot].zero_()
         self.path[slot] = 0.0
         self.obs_prev[slot].zero_()
@@ -405,13 +416,6 @@ class Population:
         probs = torch.nan_to_num(probs, nan=1.0 / cfg.act_dim)
         actions = torch.multinomial(probs, 1).squeeze(1)
 
-        # use-dependent action plasticity. no reward: only the chosen action and
-        # the active memory cells. the child inherits these weights.
-        with torch.no_grad():
-            oh = torch.nn.functional.one_hot(actions, cfg.act_dim).float()
-            self.brains.W_pol.add_(0.001 * h2.detach().unsqueeze(2) * oh.unsqueeze(1))
-            self.brains.W_pol.mul_(0.9995).clamp_(-2.0, 2.0)
-
         # 3. act
         energy_before = self.energy.clone()
         x0 = self.x.clone()
@@ -431,6 +435,17 @@ class Population:
         cy = self.y.long().clamp(0, cfg.grid - 1)
         cx = self.x.long().clamp(0, cfg.grid - 1)
         self.visited[self.ar, cy, cx] = True
+
+        # use-dependent inheritance: record only use that did something. The
+        # parent policy is frozen. The child gets this record at birth.
+        effective = (((actions == 0) & (moved > 1e-6))
+                     | (actions == 1) | (actions == 2)
+                     | ((actions == 3) & got))
+        with torch.no_grad():
+            oh = torch.nn.functional.one_hot(actions, cfg.act_dim).float()
+            self.use.mul_(self.use_decay).add_(
+                (1.0 - self.use_decay) * h2.detach().unsqueeze(2) * oh.unsqueeze(1)
+                * effective.float().view(-1, 1, 1))
 
         # 3b. energy ceiling
         at_cap = self.alive & (self.energy >= self.energy_cap - 1e-6)
@@ -590,6 +605,7 @@ class Population:
                 "cap_growth": self.cap_growth,
                 "energy_cap": self.energy_cap.clone(),
                 "action_score": self.action_score.clone(),
+                "use": self.use.clone(),
                 "min_pop": self.min_pop,
                 "cycle_on": self.cycle_on,
                 "cycle_low": self.cycle_low,
@@ -647,6 +663,8 @@ class Population:
             self.action_score.copy_(d["action_score"])
         else:
             self.action_score.zero_()
+        if "use" in d:
+            self.use.copy_(d["use"])
         self.min_pop = int(d.get("min_pop", self.cfg.min_pop))
         self.cycle_on = bool(d.get("cycle_on", False))
         self.cycle_low = float(d.get("cycle_low", 0.006))
