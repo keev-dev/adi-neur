@@ -38,6 +38,7 @@ More than one instance:
 python run.py --instance 1     # port 8000, seed 7
 python run.py --instance 2     # port 8001, seed 8
 python launch.py 2             # two instances under one supervisor
+python run.py --fresh          # ignore the checkpoint and start new
 ```
 
 Each instance is independent and uses one core. Do not thread one instance.
@@ -105,6 +106,26 @@ before. Naming before is projection.
 - the precons probe set
 - more than one body in the same room
 - teaching and communication
+
+## Checkpoints
+
+Every 10 minutes, and on SIGTERM, the simulation writes a checkpoint:
+
+```
+data/checkpoints/instance_<n>.pt
+```
+
+It holds the population, the weights, the Adam state, the rooms, the RNG, the
+focus, and the step. On startup, `run.py` loads it and continues. Use `--fresh`
+to ignore it.
+
+The deploy script uses this:
+
+```
+bash deploy/pull.sh --restart
+```
+
+It pauses, checkpoints, pulls, restarts, and resumes.
 
 ## Rule
 
